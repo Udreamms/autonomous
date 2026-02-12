@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Página Principal -->
+  <url>
+    <loc>https://udreamms.com/</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>1.00</priority>
+  </url>
+  
+  <!-- Páginas de Información -->
+  <url>
+    <loc>https://udreamms.com/about</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/destinos</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/courses</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/brochures</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.70</priority>
+  </url>
+
+  <!-- Páginas de Contacto y Colaboración -->
+  <url>
+    <loc>https://udreamms.com/contact</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/partnerships</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.60</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/referrals</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.60</priority>
+  </url>
+
+  <!-- Soporte y Legal -->
+  <url>
+    <loc>https://udreamms.com/faqs</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.50</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/privacidad</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.30</priority>
+  </url>
+  <url>
+    <loc>https://udreamms.com/terminos</loc>
+    <lastmod>2025-01-20</lastmod>
+    <priority>0.30</priority>
+  </url>
+</urlset>

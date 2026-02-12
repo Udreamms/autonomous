@@ -1,0 +1,269 @@
+'use client';
+
+import { useState } from 'react';
+import { Search, MessageSquare, Phone, Mail, CreditCard, Radio } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// Tipos
+type Category = 'All' | 'Business Messaging' | 'Calls' | 'SMS' | 'Email' | 'Live Chat' | 'Payments';
+
+interface Integration {
+    id: string;
+    name: string;
+    description: string;
+    icon: React.ReactNode;
+    category: Category;
+    popular?: boolean;
+}
+
+// Iconos SVG de Marcas
+const WhatsAppIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#25D366]" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
+);
+
+const MessengerIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#00B2FF]" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.654.212.162.338.414.338.683v2.864c0 .358.384.58.683.398l3.141-1.893c.125-.075.27-.11.414-.11.666.12 1.355.195 2.062.195.27 0 .538-.01.803-.028 4.793-.321 8.89-3.729 8.89-8.483C24 4.974 18.627 0 12 0zm1.794 14.54l-2.73-2.924a.555.555 0 00-.814 0l-3.968 3.012c-.287.218-.667-.145-.487-.463l3.006-5.289a.555.555 0 00.814 0l2.73 2.924a.555.555 0 00.814 0l3.968-3.012c.287-.218.667.145.487.463l-3.006 5.289a.555.555 0 00-.814 0z" /></svg>
+);
+
+const InstagramIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="ig-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" style={{ stopColor: '#f09433' }} />
+                <stop offset="25%" style={{ stopColor: '#e6683c' }} />
+                <stop offset="50%" style={{ stopColor: '#dc2743' }} />
+                <stop offset="75%" style={{ stopColor: '#cc2366' }} />
+                <stop offset="100%" style={{ stopColor: '#bc1888' }} />
+            </linearGradient>
+        </defs>
+        <path fill="url(#ig-gradient)" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.85-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.85-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zm0 10.162a3.999 3.999 0 110-7.998 3.999 3.999 0 010 7.998zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+    </svg>
+);
+
+const TelegramIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#26A5E4]" xmlns="http://www.w3.org/2000/svg"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" /></svg>
+);
+
+const ViberIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#7360f2]" xmlns="http://www.w3.org/2000/svg"><path d="M19.686 16.046c-.538-1.062-1.638-1.799-2.73-1.106-.419.266-.372.96-1.02 1.11-1.543.342-3.812-3.257-2.712-4.145.418-.337 1.054-.306 1.1-.806.07-.775-.464-1.726-1.362-2.316-1.139-.715-2.528-.15-3.056.554-.954 1.272.784 5.756 4.673 8.356 2.058 1.455 3.38.74 4.03.111.905-.875 1.579-1.173 1.077-1.758zM21.282 5.093a1 1 0 1 0-1.288 1.523 9.4 9.4 0 0 1 2.376 6.553 1 1 0 0 0 2 0 11.378 11.378 0 0 0-3.088-8.076zM18.81 7.649a1 1 0 1 0-1.22 1.578 5.738 5.738 0 0 1 1.638 3.945 1 1 0 1 0 2 0 7.728 7.728 0 0 0-2.418-5.523zm-5.02 2.766a1 1 0 0 0 .504-1.936c-.464-.122-.95-.183-1.442-.183-.346 0-.69.03-1.026.089a1 1 0 0 0 .346 1.97 4.07 4.07 0 0 1 .69-.06c.302 0 .6.037.886.111.014.004.028.007.042.009zM4.093 23.366c.264.444.896.471 1.25.132l2.308-2.21A11.3 11.3 0 0 0 12.3 22.31c5.96 0 10.98-4.576 10.98-10.455C23.28 5.976 18.26 1.4 12.3 1.4 6.34 1.4 1.32 5.976 1.32 11.855c0 2.825 1.156 5.378 3.033 7.228 0 0-1.205 3.125-.26 4.283z" /></svg>
+);
+
+const LineIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#00C300]" xmlns="http://www.w3.org/2000/svg"><path d="M21.16 10.82c0-4.66-4.11-8.46-9.16-8.46s-9.16 3.8-9.16 8.46c0 4.18 3.32 7.72 8.16 8.36.32.07.75.21.86.48l.22 1.35c.07.39-.18 1.54.89.84l4.9-4.57c2.14-1.19 3.29-2.91 3.29-5.11zM16.92 13H15.7V8.53h1.22v4.47zm-2.07 0h-3v-4.47h1.22v3.36h1.78v1.11zm-3.66 0H9.97V8.53h.77l1.78 2.45V8.53h1.22v4.47H13l-1.81-2.48V13zm-2.9 0H7.07V8.53h1.22v3.36h1.78v1.11z" /></svg>
+);
+
+const WeChatIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#07C160]" xmlns="http://www.w3.org/2000/svg"><path d="M8.28 16.59c-.21.05-.43.08-.65.08A6.38 6.38 0 0 1 1.25 10.3c0-3.51 2.85-6.38 6.38-6.38 3.52 0 6.38 2.86 6.38 6.38 0 .47-.05.93-.15 1.38 2.58-.2 4.75 1.46 4.75 3.73 0 2.27-2.17 3.93-4.75 3.73l-.86.43.14-.54c-.66.24-1.39.38-2.15.38-3.08 0-5.63-2.13-6.23-5.01-.11.08-.23.15-.36.2zm4.33-6.24c-.38 0-.7.31-.7.7s.32.7.7.7c.39 0 .7-.31.7-.7s-.31-.7-.7-.7zm-4.76 0c-.39 0-.7.31-.7.7s.31.7.7.7c.38 0 .7-.31.7-.7s-.32-.7-.7-.7zm5.95 6.4c-.32 0-.58.26-.58.58s.26.58.58.58c.31 0 .58-.26.58-.58s-.27-.58-.58-.58zm3.27 0c-.31 0-.57.26-.57.58s.26.58.57.58c.32 0 .58-.26.58-.58s-.26-.58-.58-.58z" /></svg>
+);
+
+// Icono Stripe
+const StripeIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#635BFF" d="M13.9 12.3c0 2.5-2.2 4.3-5.3 4.3-1.8 0-3.4-.5-4.5-1.1l.6-3c.9.5 2 .9 3 .9 1.1 0 1.5-.4 1.5-1 0-1.8-6-1.5-6-5.8 0-2.3 2.1-4.2 5-4.2 1.6 0 3 .4 3.9.9l-.6 2.9c-1-.5-2-.8-2.8-.8-.9 0-1.3.4-1.3.9 0 1.6 6 1.3 6 5.8 0 .1.1.2.1.2z" />
+    </svg>
+);
+
+
+// Datos de Integraciones
+const INTEGRATIONS: Integration[] = [
+    {
+        id: 'whatsapp-api',
+        name: 'WhatsApp Business Platform (API)',
+        description: 'Connect WhatsApp Business API via Facebook to enable seamless customer engagement and support.',
+        icon: <WhatsAppIcon />,
+        category: 'Business Messaging',
+        popular: true,
+    },
+    {
+        id: 'messenger',
+        name: 'Facebook Messenger',
+        description: 'Connect Facebook Messenger to engage with your customers on the world\'s largest social media platform.',
+        icon: <MessengerIcon />,
+        category: 'Business Messaging',
+        popular: true,
+    },
+    {
+        id: 'instagram',
+        name: 'Instagram',
+        description: 'Connect Instagram to reply to private messages and build strong brand connections.',
+        icon: <InstagramIcon />,
+        category: 'Business Messaging',
+    },
+    {
+        id: 'telegram',
+        name: 'Telegram',
+        description: 'Connect Telegram Bot to provide real-time support when customers reach out.',
+        icon: <TelegramIcon />,
+        category: 'Business Messaging',
+    },
+    {
+        id: 'stripe',
+        name: 'Stripe',
+        description: 'Manage payments securely and efficiently with Stripe integration directly in your dashboard.',
+        icon: <StripeIcon />,
+        category: 'Payments',
+    },
+    {
+        id: 'viber',
+        name: 'Viber',
+        description: 'Connect Viber Bot to enable customer support and engagement on Viber.',
+        icon: <ViberIcon />,
+        category: 'Business Messaging',
+    },
+    {
+        id: 'line',
+        name: 'LINE',
+        description: 'Connect LINE Official Account to provide timely support to your customers on LINE.',
+        icon: <LineIcon />,
+        category: 'Business Messaging',
+    },
+    {
+        id: 'wechat',
+        name: 'WeChat',
+        description: 'Connect WeChat Service Account for customer engagement, brand promotion, and seamless service.',
+        icon: <WeChatIcon />,
+        category: 'Business Messaging',
+    },
+    {
+        id: 'whatsapp-cloud',
+        name: 'WhatsApp Cloud API',
+        description: 'Connect WhatsApp Cloud API and manage your messages easily in one centralized inbox.',
+        icon: <WhatsAppIcon />, // Reusing icon, maybe slight variation needed or kept same as brand
+        category: 'Business Messaging',
+    },
+];
+
+const CATEGORIES: Category[] = ['All', 'Business Messaging', 'Calls', 'SMS', 'Email', 'Live Chat', 'Payments'];
+
+export default function ConexionPage() {
+    const [selectedCategory, setSelectedCategory] = useState<Category>('All');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredIntegrations = INTEGRATIONS.filter(item => {
+        const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    return (
+        <div className="flex min-h-screen bg-black text-white">
+            {/* 
+        Nota: Asumimos que el Sidebar está en el layout padre o se renderiza aquí.
+        Si la página se carga dentro del layout CSO, no necesitamos renderizar el sidebar aquí.
+      */}
+
+            <main className="flex-1 p-8 overflow-y-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-2xl font-medium tracking-tight mb-1">Channel Catalog</h1>
+                    <p className="text-neutral-400">Manage your messaging channels and discover new ones to help you acquire more customers.</p>
+                </div>
+
+                {/* Toolbar: Categories & Search */}
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-8 border-b border-neutral-800 pb-4">
+
+                    {/* Categories */}
+                    <div className="flex overflow-x-auto gap-6 no-scrollbar w-full xl:w-auto pb-2 xl:pb-0">
+                        {CATEGORIES.map(category => (
+                            <button
+                                key={category}
+                                onClick={() => setSelectedCategory(category)}
+                                className={`text-sm font-medium whitespace-nowrap pb-2 border-b-2 transition-colors ${selectedCategory === category
+                                    ? 'text-blue-500 border-blue-500'
+                                    : 'text-neutral-400 border-transparent hover:text-white'
+                                    }`}
+                            >
+                                {category}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative w-full xl:w-72">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-500 w-4 h-4" />
+                        <input
+                            type="text"
+                            placeholder="Search Channel Catalog"
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 transition-colors"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Categories Sections or Flat List based on selection */}
+                {/*
+             Para replicar la imagen "Business Messaging" heading, si está en 'All' podríamos agrupar, 
+             pero el comportamiento típico es filtrar. 
+             Si All está seleccionado, mostraremos headers por categoría si hay items.
+         */}
+
+                <div className="space-y-8">
+                    {selectedCategory === 'All' ? (
+                        <>
+                            {/* Render Category Blocks */}
+                            {CATEGORIES.filter(c => c !== 'All').map(cat => {
+                                const items = filteredIntegrations.filter(i => i.category === cat);
+                                if (items.length === 0) return null;
+
+                                return (
+                                    <div key={cat}>
+                                        <h2 className="text-lg font-medium tracking-tight mb-4 text-white">{cat}</h2>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {items.map(integration => (
+                                                <IntegrationCard key={integration.id} integration={integration} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {filteredIntegrations.map(integration => (
+                                <IntegrationCard key={integration.id} integration={integration} />
+                            ))}
+                        </div>
+                    )}
+
+                    {filteredIntegrations.length === 0 && (
+                        <div className="text-center py-20 text-neutral-500">
+                            <p>No integrations found matching your search.</p>
+                        </div>
+                    )}
+                </div>
+
+            </main>
+        </div>
+    );
+}
+
+function IntegrationCard({ integration }: { integration: Integration }) {
+    return (
+        <div className="bg-[#111] border border-neutral-800 rounded-xl p-5 flex flex-col h-full hover:border-neutral-700 transition-colors relative group">
+            {integration.popular && (
+                <div className="absolute top-4 left-4 bg-green-500/20 text-green-500 text-xs font-medium px-2 py-0.5 rounded flex items-center gap-1">
+                    <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
+                    Popular
+                </div>
+            )}
+
+            <div className="flex justify-between items-start mb-4">
+                <div className="mt-6 md:mt-2"> {/* Spacer for badge if responsive layout squishes titles, but badges are absolute */}</div>
+                <div className="ml-auto">
+                    {integration.icon}
+                </div>
+            </div>
+
+            <h3 className="font-medium tracking-tight text-white text-lg mb-2 pr-12">{integration.name}</h3>
+            <p className="text-neutral-400 text-sm mb-6 flex-grow">{integration.description}</p>
+
+            <div className="mt-auto flex justify-end">
+                <Button variant="outline" className="bg-transparent border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white">
+                    Connect
+                </Button>
+            </div>
+        </div>
+    )
+}
