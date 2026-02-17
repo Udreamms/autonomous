@@ -6,10 +6,11 @@ exports.executeBotFlow = executeBotFlow;
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
 const whatsappAPI_1 = require("./whatsappAPI");
-const db = admin.firestore();
+// const db = admin.firestore(); // Removed global
 // Delay helper
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 async function getActiveBot() {
+    const db = admin.firestore();
     const botsSnapshot = await db.collection('chatbots')
         .where('isActive', '==', true)
         .orderBy('updatedAt', 'desc') // Tomar el más recientemente activado para consistencia
@@ -329,6 +330,7 @@ function validateInput(input, config) {
 async function saveVariable(contactNumber, variable, value, cardId, groupId) {
     if (!variable)
         return;
+    const db = admin.firestore();
     let docRef = null;
     if (cardId && groupId) {
         docRef = db.collection('kanban-groups').doc(groupId).collection('cards').doc(cardId);
@@ -362,6 +364,7 @@ async function saveVariable(contactNumber, variable, value, cardId, groupId) {
     }
 }
 async function updateBotState(contactNumber, state, cardId, groupId) {
+    const db = admin.firestore();
     let docRef = null;
     if (cardId && groupId) {
         docRef = db.collection('kanban-groups').doc(groupId).collection('cards').doc(cardId);
@@ -388,6 +391,7 @@ async function updateBotState(contactNumber, state, cardId, groupId) {
     }
 }
 async function logBotMessage(contactNumber, message, cardId, groupId) {
+    const db = admin.firestore();
     let docRef = null;
     if (cardId && groupId) {
         docRef = db.collection('kanban-groups').doc(groupId).collection('cards').doc(cardId);

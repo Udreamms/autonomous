@@ -5,8 +5,9 @@ exports.updateReadStatus = updateReadStatus;
 // src/helpers/kanban.ts
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
-const db = admin.firestore();
+// const db = admin.firestore(); // Removed global
 async function handleKanbanUpdate(from, contactName, body, source = 'whatsapp') {
+    const db = admin.firestore();
     // 1. Buscamos si ya existe una tarjeta con este número (FUERA de la transacción)
     // Firestore no permite collectionGroup dentro de runTransaction
     let cardsRef = db.collectionGroup('cards').where('contactNumber', '==', from);
@@ -89,6 +90,7 @@ async function handleKanbanUpdate(from, contactName, body, source = 'whatsapp') 
 }
 // NUEVA FUNCIÓN PARA ACTUALIZAR ESTADO DE LECTURA
 async function updateReadStatus(recipientId) {
+    const db = admin.firestore();
     const cardsRef = db.collectionGroup('cards').where('contactNumber', '==', recipientId);
     const snapshot = await cardsRef.get();
     if (!snapshot.empty) {

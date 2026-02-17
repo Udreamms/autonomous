@@ -11,12 +11,13 @@ import {
     markAsRead
 } from './whatsappAPI';
 
-const db = admin.firestore();
+// const db = admin.firestore(); // Removed global
 
 // Delay helper
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function getActiveBot(): Promise<any | null> {
+    const db = admin.firestore();
     const botsSnapshot = await db.collection('chatbots')
         .where('isActive', '==', true)
         .orderBy('updatedAt', 'desc') // Tomar el más recientemente activado para consistencia
@@ -356,6 +357,7 @@ function validateInput(input: string, config: any): { isValid: boolean, errorMes
 
 async function saveVariable(contactNumber: string, variable: string, value: string, cardId?: string, groupId?: string) {
     if (!variable) return;
+    const db = admin.firestore();
 
     let docRef: FirebaseFirestore.DocumentReference | null = null;
 
@@ -392,6 +394,7 @@ async function saveVariable(contactNumber: string, variable: string, value: stri
 }
 
 async function updateBotState(contactNumber: string, state: any, cardId?: string, groupId?: string) {
+    const db = admin.firestore();
     let docRef: FirebaseFirestore.DocumentReference | null = null;
 
     if (cardId && groupId) {
@@ -420,6 +423,7 @@ async function updateBotState(contactNumber: string, state: any, cardId?: string
 }
 
 async function logBotMessage(contactNumber: string, message: string, cardId?: string, groupId?: string) {
+    const db = admin.firestore();
     let docRef: FirebaseFirestore.DocumentReference | null = null;
 
     if (cardId && groupId) {

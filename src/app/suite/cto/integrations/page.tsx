@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, MessageSquare, Phone, Mail, CreditCard, Radio } from 'lucide-react';
+import { Search, MessageSquare, Phone, Mail, CreditCard, Radio, Globe, Ghost, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Tipos
-type Category = 'All' | 'Business Messaging' | 'Calls' | 'SMS' | 'Email' | 'Live Chat' | 'Payments';
+type Category = 'All' | 'Business Messaging' | 'Social Media' | 'Live Chat' | 'Payments' | 'SMS';
 
 interface Integration {
     id: string;
@@ -14,9 +14,11 @@ interface Integration {
     icon: React.ReactNode;
     category: Category;
     popular?: boolean;
+    status?: 'Connected' | 'Not Connected';
 }
 
-// Iconos SVG de Marcas
+// --- Brand Icons (SVG) ---
+
 const WhatsAppIcon = () => (
     <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#25D366]" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
 );
@@ -40,6 +42,18 @@ const InstagramIcon = () => (
     </svg>
 );
 
+const TikTokIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.65-1.58-1.11-.01.08-.01.16-.01.24v9.64c.03 3.98-3.92 7.02-7.88 5.75-2.52-.77-4.14-3.23-3.91-5.9.22-2.45 2.15-4.43 4.59-4.7 1.83-.24 3.58.55 4.67 1.96.11.16.2.33.29.5v-4.16c-1.92-1.35-4.52-1.38-6.49-.09-2.3 1.46-3.41 4.29-2.6 6.94.81 2.8 3.58 4.7 6.49 4.52 3.19-.13 5.8-2.69 5.86-5.88V9.11c-1.42.06-2.85-.35-4.1-.96-1.39-.67-2.48-1.78-3.13-3.19-.38-.8-.61-1.68-.61-2.58v-2.36z" />
+    </svg>
+);
+
+const XIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+);
+
 const TelegramIcon = () => (
     <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#26A5E4]" xmlns="http://www.w3.org/2000/svg"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" /></svg>
 );
@@ -56,7 +70,6 @@ const WeChatIcon = () => (
     <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#07C160]" xmlns="http://www.w3.org/2000/svg"><path d="M8.28 16.59c-.21.05-.43.08-.65.08A6.38 6.38 0 0 1 1.25 10.3c0-3.51 2.85-6.38 6.38-6.38 3.52 0 6.38 2.86 6.38 6.38 0 .47-.05.93-.15 1.38 2.58-.2 4.75 1.46 4.75 3.73 0 2.27-2.17 3.93-4.75 3.73l-.86.43.14-.54c-.66.24-1.39.38-2.15.38-3.08 0-5.63-2.13-6.23-5.01-.11.08-.23.15-.36.2zm4.33-6.24c-.38 0-.7.31-.7.7s.32.7.7.7c.39 0 .7-.31.7-.7s-.31-.7-.7-.7zm-4.76 0c-.39 0-.7.31-.7.7s.31.7.7.7c.38 0 .7-.31.7-.7s-.32-.7-.7-.7zm5.95 6.4c-.32 0-.58.26-.58.58s.26.58.58.58c.31 0 .58-.26.58-.58s-.27-.58-.58-.58zm3.27 0c-.31 0-.57.26-.57.58s.26.58.57.58c.32 0 .58-.26.58-.58s-.26-.58-.58-.58z" /></svg>
 );
 
-// Icono Stripe
 const StripeIcon = () => (
     <svg viewBox="0 0 24 24" className="w-10 h-10" xmlns="http://www.w3.org/2000/svg">
         <path fill="#635BFF" d="M13.9 12.3c0 2.5-2.2 4.3-5.3 4.3-1.8 0-3.4-.5-4.5-1.1l.6-3c.9.5 2 .9 3 .9 1.1 0 1.5-.4 1.5-1 0-1.8-6-1.5-6-5.8 0-2.3 2.1-4.2 5-4.2 1.6 0 3 .4 3.9.9l-.6 2.9c-1-.5-2-.8-2.8-.8-.9 0-1.3.4-1.3.9 0 1.6 6 1.3 6 5.8 0 .1.1.2.1.2z" />
@@ -64,42 +77,79 @@ const StripeIcon = () => (
 );
 
 
-// Datos de Integraciones
+// Datos de Integraciones - CATALOGO COMPLETO
 const INTEGRATIONS: Integration[] = [
     {
         id: 'whatsapp-api',
-        name: 'WhatsApp Business Platform (API)',
+        name: 'WhatsApp Business (API)',
         description: 'Connect WhatsApp Business API via Facebook to enable seamless customer engagement and support.',
         icon: <WhatsAppIcon />,
+        category: 'Business Messaging',
+        popular: true,
+        status: 'Connected',
+    },
+    {
+        id: 'instagram',
+        name: 'Instagram',
+        description: 'Reply to DMs, comments, and story mentions directly from your unified inbox.',
+        icon: <InstagramIcon />,
         category: 'Business Messaging',
         popular: true,
     },
     {
         id: 'messenger',
         name: 'Facebook Messenger',
-        description: 'Connect Facebook Messenger to engage with your customers on the world\'s largest social media platform.',
+        description: 'Connect with customers on the world\'s largest social messaging platform.',
         icon: <MessengerIcon />,
         category: 'Business Messaging',
         popular: true,
     },
     {
-        id: 'instagram',
-        name: 'Instagram',
-        description: 'Connect Instagram to reply to private messages and build strong brand connections.',
-        icon: <InstagramIcon />,
-        category: 'Business Messaging',
-    },
-    {
         id: 'telegram',
         name: 'Telegram',
-        description: 'Connect Telegram Bot to provide real-time support when customers reach out.',
+        description: 'Connect Telegram Bots to provide fast, secure automated support.',
         icon: <TelegramIcon />,
         category: 'Business Messaging',
     },
     {
+        id: 'webchat',
+        name: 'Web Chat Widget',
+        description: 'Embed a live chat widget on your website and convert visitors into customers.',
+        icon: <Globe className="w-10 h-10 text-cyan-400" />,
+        category: 'Live Chat',
+    },
+    {
+        id: 'x',
+        name: 'X (Twitter)',
+        description: 'Manage DMs and mentions from X directly in your workflow.',
+        icon: <XIcon />,
+        category: 'Social Media',
+    },
+    {
+        id: 'tiktok',
+        name: 'TikTok',
+        description: 'Engage with your audience via TikTok Direct Messages.',
+        icon: <TikTokIcon />,
+        category: 'Social Media',
+    },
+    {
+        id: 'snapchat',
+        name: 'Snapchat',
+        description: 'Connect with a younger demographic through Snapchat Business Messaging.',
+        icon: <Ghost className="w-10 h-10 text-yellow-400" />,
+        category: 'Social Media',
+    },
+    {
+        id: 'sms',
+        name: 'SMS (Twilio)',
+        description: 'Send and receive traditional SMS text messages worldwide.',
+        icon: <MessageCircle className="w-10 h-10 text-green-500" />,
+        category: 'SMS',
+    },
+    {
         id: 'stripe',
         name: 'Stripe',
-        description: 'Manage payments securely and efficiently with Stripe integration directly in your dashboard.',
+        description: 'Manage payments securely and efficiently directly in your dashboard.',
         icon: <StripeIcon />,
         category: 'Payments',
     },
@@ -120,20 +170,13 @@ const INTEGRATIONS: Integration[] = [
     {
         id: 'wechat',
         name: 'WeChat',
-        description: 'Connect WeChat Service Account for customer engagement, brand promotion, and seamless service.',
+        description: 'Connect WeChat Service Account for customer engagement in Asia.',
         icon: <WeChatIcon />,
-        category: 'Business Messaging',
-    },
-    {
-        id: 'whatsapp-cloud',
-        name: 'WhatsApp Cloud API',
-        description: 'Connect WhatsApp Cloud API and manage your messages easily in one centralized inbox.',
-        icon: <WhatsAppIcon />, // Reusing icon, maybe slight variation needed or kept same as brand
         category: 'Business Messaging',
     },
 ];
 
-const CATEGORIES: Category[] = ['All', 'Business Messaging', 'Calls', 'SMS', 'Email', 'Live Chat', 'Payments'];
+const CATEGORIES: Category[] = ['All', 'Business Messaging', 'Social Media', 'Live Chat', 'SMS', 'Payments'];
 
 export default function ConexionPage() {
     const [selectedCategory, setSelectedCategory] = useState<Category>('All');
@@ -148,16 +191,11 @@ export default function ConexionPage() {
 
     return (
         <div className="flex min-h-screen bg-black text-white">
-            {/* 
-        Nota: Asumimos que el Sidebar está en el layout padre o se renderiza aquí.
-        Si la página se carga dentro del layout CSO, no necesitamos renderizar el sidebar aquí.
-      */}
-
             <main className="flex-1 p-8 overflow-y-auto">
                 {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-2xl font-medium tracking-tight mb-1">Channel Catalog</h1>
-                    <p className="text-neutral-400">Manage your messaging channels and discover new ones to help you acquire more customers.</p>
+                    <h1 className="text-2xl font-medium tracking-tight mb-1">Catálogo de Canales</h1>
+                    <p className="text-neutral-400">Gestiona tus canales de mensajería y descubre nuevas formas de adquirir clientes.</p>
                 </div>
 
                 {/* Toolbar: Categories & Search */}
@@ -184,7 +222,7 @@ export default function ConexionPage() {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-500 w-4 h-4" />
                         <input
                             type="text"
-                            placeholder="Search Channel Catalog"
+                            placeholder="Buscar canal..."
                             className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 transition-colors"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -192,17 +230,9 @@ export default function ConexionPage() {
                     </div>
                 </div>
 
-                {/* Categories Sections or Flat List based on selection */}
-                {/*
-             Para replicar la imagen "Business Messaging" heading, si está en 'All' podríamos agrupar, 
-             pero el comportamiento típico es filtrar. 
-             Si All está seleccionado, mostraremos headers por categoría si hay items.
-         */}
-
                 <div className="space-y-8">
                     {selectedCategory === 'All' ? (
                         <>
-                            {/* Render Category Blocks */}
                             {CATEGORIES.filter(c => c !== 'All').map(cat => {
                                 const items = filteredIntegrations.filter(i => i.category === cat);
                                 if (items.length === 0) return null;
@@ -240,18 +270,29 @@ export default function ConexionPage() {
 }
 
 function IntegrationCard({ integration }: { integration: Integration }) {
+    const isConnected = integration.status === 'Connected';
+
     return (
-        <div className="bg-[#111] border border-neutral-800 rounded-xl p-5 flex flex-col h-full hover:border-neutral-700 transition-colors relative group">
-            {integration.popular && (
+        <div className={`border rounded-xl p-5 flex flex-col h-full transition-all relative group
+            ${isConnected ? 'bg-blue-950/10 border-blue-900/50' : 'bg-[#111] border-neutral-800 hover:border-neutral-700'}
+        `}>
+            {integration.popular && !isConnected && (
                 <div className="absolute top-4 left-4 bg-green-500/20 text-green-500 text-xs font-medium px-2 py-0.5 rounded flex items-center gap-1">
                     <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
                     Popular
                 </div>
             )}
 
+            {isConnected && (
+                <div className="absolute top-4 left-4 bg-blue-500/20 text-blue-400 text-xs font-medium px-2 py-0.5 rounded flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                    Conectado
+                </div>
+            )}
+
             <div className="flex justify-between items-start mb-4">
-                <div className="mt-6 md:mt-2"> {/* Spacer for badge if responsive layout squishes titles, but badges are absolute */}</div>
-                <div className="ml-auto">
+                <div className="mt-6 md:mt-2"></div>
+                <div className="ml-auto p-2 bg-neutral-900/50 rounded-lg">
                     {integration.icon}
                 </div>
             </div>
@@ -260,8 +301,19 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <p className="text-neutral-400 text-sm mb-6 flex-grow">{integration.description}</p>
 
             <div className="mt-auto flex justify-end">
-                <Button variant="outline" className="bg-transparent border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white">
-                    Connect
+                <Button
+                    variant={isConnected ? "secondary" : "outline"}
+                    className={`
+                        ${isConnected
+                            ? 'bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border-blue-500/20'
+                            : 'bg-transparent border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white'}
+                    `}
+                    onClick={() => {
+                        // Aquí iría la redirección a la página de configuración específica
+                        // router.push(`/suite/cto/integrations/${integration.id}`)
+                    }}
+                >
+                    {isConnected ? 'Configurar' : 'Conectar'}
                 </Button>
             </div>
         </div>

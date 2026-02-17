@@ -3,9 +3,10 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 
-const db = admin.firestore();
+// const db = admin.firestore(); // Removed global
 
 export async function handleKanbanUpdate(from: string, contactName: string, body: string, source: string = 'whatsapp'): Promise<any> {
+    const db = admin.firestore();
     // 1. Buscamos si ya existe una tarjeta con este número (FUERA de la transacción)
     // Firestore no permite collectionGroup dentro de runTransaction
     let cardsRef = db.collectionGroup('cards').where('contactNumber', '==', from);
@@ -111,6 +112,7 @@ export async function handleKanbanUpdate(from: string, contactName: string, body
 
 // NUEVA FUNCIÓN PARA ACTUALIZAR ESTADO DE LECTURA
 export async function updateReadStatus(recipientId: string): Promise<void> {
+    const db = admin.firestore();
     const cardsRef = db.collectionGroup('cards').where('contactNumber', '==', recipientId);
     const snapshot = await cardsRef.get();
 
