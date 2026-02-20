@@ -182,6 +182,7 @@ export interface CardData {
     visaType?: string;
     hasPassport?: 'yes' | 'no';
     channel?: string;
+    primary_channel?: string;
     mutedUntil?: Timestamp | null;
 }
 

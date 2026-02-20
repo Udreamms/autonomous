@@ -1,9 +1,13 @@
 import * as admin from 'firebase-admin';
-admin.initializeApp();
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
 
 export { whatsappWebhook } from './webhooks/whatsapp';
 export { metaWebhook } from './webhooks/meta';
 export { telegramWebhook } from './webhooks/telegram';
 export { xWebhook } from './webhooks/x';
 export { webchatWebhook } from './webhooks/webchat';
-// Export others as they are created...
+export { tiktokWebhook } from './webhooks/tiktok';
+export { googleFormsWebhook } from './webhooks/googleForms';
+export { moveCard } from './helpers/kanbanOperations';

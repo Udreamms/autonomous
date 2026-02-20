@@ -1,9 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.googleFormsWebhook = void 0;
-// functions/src/webhooks/googleForms.ts
 const functions = require("firebase-functions");
-const kanban_1 = require("../helpers/kanban");
+const kanbanOmni_1 = require("../helpers/kanbanOmni");
 /**
  * Webhook para recibir datos de Google Forms.
  * Se espera un POST con: { name, phone, email, message }
@@ -29,9 +28,18 @@ exports.googleFormsWebhook = functions.https.onRequest(async (req, res) => {
     try {
         const contactName = name || 'Nuevo Lead (Web)';
         const bodyContent = message || `Lead registrado vía Formulario. Email: ${email || 'N/A'}`;
-        // Creamos la tarjeta con origen 'form'
-        await (0, kanban_1.handleKanbanUpdate)(phone, contactName, bodyContent, 'form');
-        functions.logger.info(`Lead created from Google Form: ${contactName} (${phone})`);
+        const unifiedMessage = {
+            source_platform: 'form',
+            external_id: phone,
+            contact_name: contactName,
+            message_text: bodyContent,
+            message_type: 'text',
+            timestamp: new Date(),
+            platform_metadata: { email, original_name: name }
+        };
+        // Creamos la tarjeta con origen 'form' pero usando la lógica Omnicanal
+        await (0, kanbanOmni_1.handleKanbanUpdateOmni)(unifiedMessage);
+        functions.logger.info(`Lead created from Google Form (Omni): ${contactName} (${phone})`);
         res.status(200).send({ success: true, message: 'Lead imported correctly' });
     }
     catch (error) {

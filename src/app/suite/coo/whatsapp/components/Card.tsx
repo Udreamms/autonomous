@@ -128,11 +128,28 @@ const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts =
           <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-1.5 min-w-0">
               {(() => {
-                const channel = (card.channel || '').toLowerCase();
-                const hasNumber = !!card.contactNumber;
+                const channel = (card.channel || card.source || '').toLowerCase(); // Fallback to source
+
                 if (channel.includes('instagram')) {
                   return <Instagram className="w-3.5 h-3.5 text-pink-500 flex-shrink-0" />;
                 }
+                if (channel.includes('messenger') || channel.includes('facebook')) {
+                  return <Facebook className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />;
+                }
+                if (channel.includes('web')) {
+                  return <Globe2 className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />;
+                }
+                if (channel.includes('telegram')) {
+                  return <MessageCircle className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />;
+                }
+                if (channel.includes('x') || channel.includes('twitter')) {
+                  return <Twitter className="w-3.5 h-3.5 text-neutral-200 flex-shrink-0" />;
+                }
+                if (channel.includes('tiktok')) {
+                  return <span className="text-[10px] flex-shrink-0">🎵</span>; // Fallback for TikTok if no icon
+                }
+
+                // Default to WhatsApp
                 return <WhatsappIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />;
               })()}
               <h3 className="font-medium text-[11px] text-white truncate leading-none tracking-tight">

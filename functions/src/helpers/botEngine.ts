@@ -1,17 +1,6 @@
-
-// src/helpers/botEngine.ts
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
-import {
-    sendMessage,
-    sendMediaMessage,
-    sendButtonMessage,
-    sendListMessage,
-    sendLocationMessage,
-    markAsRead
-} from './whatsappAPI';
-
-// const db = admin.firestore(); // Removed global
+import { getMessagingAdapter } from './platforms/factory';
 
 // Delay helper
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -142,6 +131,9 @@ function extractName(input: string): string {
 export async function executeBotFlow(bot: any, to: string, cardData: any, userMessage: string): Promise<void> {
     functions.logger.info(`>>> EXECUTING FLOW: ${bot.name} for ${to} <<<`);
 
+    const platform = cardData.source || 'whatsapp'; // Default to whatsapp if not set
+    const adapter = getMessagingAdapter(platform);
+
     let currentNodeId = cardData.botState?.currentNodeId;
     let nextNodeId: string | null = null;
     let shouldContinue = true;
@@ -159,7 +151,19 @@ export async function executeBotFlow(bot: any, to: string, cardData: any, userMe
 
         try {
             // markAsRead might fail if userMessage is not a valid ID, we wrap it
-            await markAsRead(userMessage).catch(e => functions.logger.warn('markAsRead failed (non-critical):', e.message));
+            // For Messenger, 'to' is effectively the ID. For WA, 'userMessage' is the msg ID (usually passed as body in simplified flow? No, webhook passes msg ID if available, but here userMessage seems to be text).
+            // Actually, in whatsappWebhook, executeBotFlow is called with `body` as userMessage.
+            // markAsRead expects a message ID.
+            // If userMessage is just text, markAsRead will likely fail on WA API if it expects an ID.
+            // But we keep it as is for compatibility, wrapping in try-catch.
+            if (platform !== 'whatsapp') {
+                // For non-WA, we treat 'to' as the identifier for read receipt context if possible
+                await adapter.markAsRead(to).catch(e => functions.logger.warn('markAsRead failed:', e.message));
+            } else {
+                // For WA, if userMessage is text, this call is weird but preserving existing logic.
+                // ideally, we should pass messageId separately.
+                await adapter.markAsRead(userMessage).catch(e => functions.logger.warn('markAsRead failed (non-critical):', e.message));
+            }
         } catch (e) { }
 
         await delay(500);
@@ -168,7 +172,8 @@ export async function executeBotFlow(bot: any, to: string, cardData: any, userMe
             const validation = validateInput(userMessage, currentNode.data || {});
             if (!validation.isValid) {
                 functions.logger.info(`[executeBotFlow] Input validation failed for ${to}: ${validation.errorMessage}`);
-                await sendMessage(to, validation.errorMessage || "Respuesta inválida.");
+                const errorMsg = validation.errorMessage || "Respuesta inválida.";
+                await adapter.sendMessage(to, errorMsg);
                 return;
             }
 
@@ -268,7 +273,7 @@ export async function executeBotFlow(bot: any, to: string, cardData: any, userMe
             case 'textMessageNode':
                 const txt = replaceVariables(nextNode.data.content || nextNode.data.text || '', cardData);
                 if (txt) {
-                    await sendMessage(to, txt);
+                    await adapter.sendMessage(to, txt);
                     await logBotMessage(to, txt, cardData.id, cardData.groupId);
                 }
                 nextNodeId = getNextNodeId(bot, nextNodeId);
@@ -281,7 +286,7 @@ export async function executeBotFlow(bot: any, to: string, cardData: any, userMe
             case 'mediaMessageNode':
                 const caption = replaceVariables(nextNode.data.caption || '', cardData);
                 if (nextNode.data.url) {
-                    await sendMediaMessage(to, nextNode.data.url, caption, nextNode.data.filename);
+                    await adapter.sendMediaMessage(to, nextNode.data.url, caption, nextNode.data.filename);
                     await logBotMessage(to, `[Archivo] ${caption}`, cardData.id, cardData.groupId);
                 }
                 nextNodeId = getNextNodeId(bot, nextNodeId);
@@ -291,11 +296,11 @@ export async function executeBotFlow(bot: any, to: string, cardData: any, userMe
                 const qrText = replaceVariables(nextNode.data.text || nextNode.data.bodyText || 'Selecciona:', cardData);
                 const buttons = sanitizeButtonsData(nextNode.data.buttons || []);
                 if (buttons.length > 0) {
-                    await sendButtonMessage(to, qrText, buttons);
+                    await adapter.sendButtonMessage(to, qrText, buttons);
                     await logBotMessage(to, `[Botones] ${qrText}`, cardData.id, cardData.groupId);
                     shouldContinue = false;
                 } else {
-                    await sendMessage(to, qrText);
+                    await adapter.sendMessage(to, qrText);
                     nextNodeId = getNextNodeId(bot, nextNodeId);
                 }
                 break;
@@ -305,18 +310,18 @@ export async function executeBotFlow(bot: any, to: string, cardData: any, userMe
                 const btnLabel = nextNode.data.buttonText || "Opciones";
                 const cleanSections = sanitizeListData(nextNode.data);
                 if (cleanSections.length > 0) {
-                    await sendListMessage(to, listBody, btnLabel, cleanSections);
+                    await adapter.sendListMessage(to, listBody, btnLabel, cleanSections);
                     await logBotMessage(to, `[Lista] ${listBody}`, cardData.id, cardData.groupId);
                     shouldContinue = false;
                 } else {
-                    await sendMessage(to, listBody);
+                    await adapter.sendMessage(to, listBody);
                     nextNodeId = getNextNodeId(bot, nextNodeId);
                 }
                 break;
 
             case 'locationNode':
                 if (nextNode.data.latitude) {
-                    await sendLocationMessage(to, parseFloat(nextNode.data.latitude), parseFloat(nextNode.data.longitude), nextNode.data.name, nextNode.data.address);
+                    await adapter.sendLocationMessage(to, parseFloat(nextNode.data.latitude), parseFloat(nextNode.data.longitude), nextNode.data.name, nextNode.data.address);
                 }
                 nextNodeId = getNextNodeId(bot, nextNodeId);
                 break;
@@ -432,11 +437,6 @@ async function logBotMessage(contactNumber: string, message: string, cardId?: st
         const groups = await db.collection('kanban-groups').get();
         for (const group of groups.docs) {
             const ref = group.ref.collection('cards').doc(cardId);
-            // We don't check existence to speed up, assuming it exists if passed. 
-            // But collectionGroup is tricky without knowing group ID.
-            // Wait, without group ID we cannot construct ref directly.
-            // We MUST search or pass groupId.
-            // Since we don't pass groupId, we still have to find it.
             const snap = await ref.get();
             if (snap.exists) {
                 docRef = ref;

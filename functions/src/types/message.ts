@@ -10,10 +10,11 @@ export type PlatformType =
     | 'messenger'
     | 'telegram'
     | 'web'
-    | 'x'        // Twitter
+    | 'x'
     | 'tiktok'
     | 'snapchat'
-    | 'sms';
+    | 'sms'
+    | 'form'; // Added form
 
 /**
  * Message Content Types
@@ -25,11 +26,12 @@ export type MessageType =
     | 'audio'
     | 'document'
     | 'location'
-    | 'interactive' // Buttons, lists, native platform widgets
+    | 'interactive'
     | 'sticker'
     | 'voice'
-    | 'post_mention' // For X, Instagram mentions
-    | 'comment';     // For Facebook, Instagram, X replies
+    | 'post_mention'
+    | 'comment'
+    | 'unknown'; // Added unknown
 
 /**
  * Platform Metadata
@@ -37,14 +39,16 @@ export type MessageType =
  */
 export interface PlatformMetadata {
     profile_picture?: string;
-    username?: string;            // @username for X, Instagram, Telegram, TikTok
-    platform_user_id?: string;    // Original ID from the platform
-    is_verified?: boolean;        // For X, Instagram
-    followers_count?: number;     // Context for priority?
-    reply_to_id?: string;         // ID of the post/comment being replied to
-    thread_id?: string;           // For email or threaded conversations
-    chat_id?: string | number;    // For Telegram/Bot chats
-    platform_specific_data?: Record<string, any>; // Raw dump if needed
+    username?: string;
+    platform_user_id?: string;
+    is_verified?: boolean;
+    followers_count?: number;
+    reply_to_id?: string;
+    thread_id?: string;
+    chat_id?: string | number;
+    email?: string; // Added email
+    original_name?: string; // Added original_name
+    platform_specific_data?: Record<string, any>;
 }
 
 /**

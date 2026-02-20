@@ -1,7 +1,9 @@
 import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 // import * as admin from 'firebase-admin';
 import { normalizeMetaMessage } from '../helpers/messageNormalizer';
 import { handleKanbanUpdateOmni } from '../helpers/kanbanOmni';
+import { executeBotFlow, getActiveBot } from '../helpers/botEngine';
 
 /**
  * META WEBHOOK HANDLER
@@ -19,7 +21,7 @@ export const metaWebhook = functions.https.onRequest(async (req: functions.https
         const challenge = req.query['hub.challenge'];
 
         // Check verify token against .env or config
-        const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'udreamms_secure_token';
+        const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'malamia';
 
         if (mode && token) {
             if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -52,7 +54,40 @@ export const metaWebhook = functions.https.onRequest(async (req: functions.https
 
                         // --- NORMALIZATION & PROCESSING ---
                         const unifiedMessage = normalizeMetaMessage(webhookEvent, platform);
-                        await handleKanbanUpdateOmni(unifiedMessage);
+                        const cardResult = await handleKanbanUpdateOmni(unifiedMessage);
+
+                        // --- BOT TRIGGER ---
+                        if (cardResult && cardResult.success) {
+
+
+                            // Optimización: Solo invocar bot si es mensaje de texto entrante del usuario
+                            if (unifiedMessage.message_type === 'text') {
+                                const activeBot = await getActiveBot();
+                                if (activeBot) {
+
+                                    // Actually admin is already imported.
+
+                                    // We need to find where the card is. handleKanbanUpdateOmni puts it in a group.
+                                    // Since we don't know the group ID easily without querying or modifying handleKanbanUpdateOmni to return it.
+                                    // handleKanbanUpdateOmni DOES return { success: true, cardId: cardRef.id, isNew }.
+                                    // It does NOT return groupId.
+                                    // We can search for the card by ID (collectionGroup query).
+
+                                    // However, for speed, let's just pass the ID and let botEngine find it?
+                                    // executeBotFlow takes (bot, to, cardData, userMessage).
+                                    // cardData needs botState.
+
+                                    // Let's do a quick lookup.
+                                    const cardsQuery = admin.firestore().collectionGroup('cards').where(admin.firestore.FieldPath.documentId(), '==', cardResult.cardId);
+                                    const cardSnap = await cardsQuery.get();
+
+                                    if (!cardSnap.empty) {
+                                        const fullCardData = { id: cardSnap.docs[0].id, ...cardSnap.docs[0].data() };
+                                        await executeBotFlow(activeBot, unifiedMessage.external_id, fullCardData, unifiedMessage.message_text);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 res.status(200).send('EVENT_RECEIVED');

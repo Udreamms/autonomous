@@ -8,7 +8,7 @@ import { UnifiedMessage } from '../types/message';
  * Handles Creation & Updates of Kanban Cards for ALL platforms.
  */
 export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<any> {
-    const db = admin.firestore(); // Lazy init
+    const db = admin.firestore();
     const {
         source_platform,
         external_id,
@@ -22,98 +22,89 @@ export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<a
     // --- 1. SEARCH FOR EXISTING CARD ---
 
     // Strategy A: Search by unified external_id (Best for Social Media: IG, X, TikTok)
-    let cardsQuery = db.collectionGroup('cards')
+    let snapshot = await db.collectionGroup('cards')
         .where(`platform_ids.${source_platform}`, '==', external_id)
-        .limit(1);
+        .limit(1)
+        .get();
 
-    let snapshot = await cardsQuery.get();
-
-    // Strategy B: Search by Phone Number (If available, mainly for WhatsApp/SMS integration consistency)
+    // Strategy B: Search by Phone Number (mainly for WhatsApp/SMS)
     if (snapshot.empty && (source_platform === 'whatsapp' || source_platform === 'sms')) {
-        const cleanNumber = external_id.replace(/\+/g, ''); // Basic clean
-        // Try matching contactNumberClean (standard) or contactNumber (legacy)
-        const phoneQuery = db.collectionGroup('cards').where('contactNumberClean', '==', cleanNumber).limit(1);
-        snapshot = await phoneQuery.get();
+        const cleanNumber = external_id.replace(/\+/g, '');
+        snapshot = await db.collectionGroup('cards').where('contactNumberClean', '==', cleanNumber).limit(1).get();
 
         if (snapshot.empty) {
-            const legacyQuery = db.collectionGroup('cards').where('contactNumber', '==', external_id).limit(1);
-            snapshot = await legacyQuery.get();
+            snapshot = await db.collectionGroup('cards').where('contactNumber', '==', external_id).limit(1).get();
         }
     }
 
-    // --- 2. EXECUTE TRANSACTION (Update or Create) ---
+    // --- 2. Pre-query ALL groups OUTSIDE the transaction ---
+    // IMPORTANT: Never query with where() inside a Firestore transaction — results
+    // can come back empty even when data exists. We resolve the group ID here instead.
+    const groupsRef = db.collection('kanban-groups');
+    // NOTE: No orderBy here — it requires a composite Firestore index.
+    // We find "Bandeja de Entrada" in memory which is equally effective.
+    const allGroupsSnap = await groupsRef.get();
+
+    if (allGroupsSnap.empty) {
+        functions.logger.error('[Omni] CRITICAL: No kanban-groups found in DB!');
+        throw new Error('No Kanban groups found. Please create at least one group in the app.');
+    }
+
+    // Find "Bandeja de Entrada" case-insensitively. Fall back to first group by order.
+    const inboxGroupDoc = allGroupsSnap.docs.find(
+        g => (g.data().name || '').toLowerCase().includes('bandeja')
+    ) || allGroupsSnap.docs[0];
+
+    const inboxGroupId = inboxGroupDoc.id;
+    functions.logger.info(
+        `[Omni] Inbox group resolved: id=${inboxGroupId} name="${inboxGroupDoc.data().name}"`
+    );
+
+    // --- 3. EXECUTE TRANSACTION (Update or Create) ---
     return db.runTransaction(async (transaction) => {
         let cardRef: admin.firestore.DocumentReference;
         let isNew = false;
 
         if (!snapshot.empty) {
-            // -> UPDATE EXISTING
-            const cardDoc = snapshot.docs[0];
-            cardRef = cardDoc.ref;
-            // Removed unused currentMessages logic
-
+            // -> UPDATE EXISTING CARD
+            cardRef = snapshot.docs[0].ref;
             functions.logger.info(`[Omni] Updating existing card for ${source_platform}:${external_id}`);
 
-            // Build update payload
             const updatePayload: any = {
                 lastMessage: message_text,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                // Update badge/source info to reflect most recent interaction
                 last_interaction_source: source_platform,
                 last_interaction_type: message_type,
+                [`platform_ids.${source_platform}`]: external_id,
             };
 
-            // Merge Platform Metadata (Upsert)
             if (platform_metadata) {
                 updatePayload[`platform_metadata.${source_platform}`] = platform_metadata;
             }
 
-            // Ensure platform_ids mapping exists (for linking future messages)
-            updatePayload[`platform_ids.${source_platform}`] = external_id;
-
-            // Add Message to Array
             updatePayload.messages = admin.firestore.FieldValue.arrayUnion({
-                sender: 'user', // "user" means the contact
+                sender: 'user',
                 text: message_text,
                 type: message_type,
                 timestamp: timestamp || new Date(),
-                platform: source_platform, // Track which channel this specific message came from
+                platform: source_platform,
                 media_url: message.media_url || null
             });
 
             transaction.update(cardRef, updatePayload);
 
         } else {
-            // -> CREATE NEW (In "Bandeja de Entrada")
+            // -> CREATE NEW CARD in Bandeja de Entrada
             isNew = true;
-            functions.logger.info(`[Omni] Creating NEW card for ${source_platform}:${external_id}`);
-
-            // Find "Bandeja de Entrada" Group
-            const groupsRef = db.collection('kanban-groups');
-            const inboxQuery = groupsRef.where('name', '==', 'Bandeja de Entrada').limit(1);
-            const inboxSnap = await transaction.get(inboxQuery);
-
-            let groupId;
-            if (!inboxSnap.empty) {
-                groupId = inboxSnap.docs[0].id;
-            } else {
-                // Fallback: First group available
-                const fallbackQuery = groupsRef.orderBy('order').limit(1);
-                const fallbackSnap = await fallbackQuery.get();
-                if (fallbackSnap.empty) throw new Error('Kanban Groups not initialized');
-                groupId = fallbackSnap.docs[0].id;
-            }
-
-            // Create Card Document Ref
-            cardRef = groupsRef.doc(groupId).collection('cards').doc();
+            cardRef = groupsRef.doc(inboxGroupId).collection('cards').doc();
+            functions.logger.info(`[Omni] Creating NEW card for ${source_platform}:${external_id} in group ${inboxGroupId}`);
 
             const newCardData = {
                 contactName: contact_name || 'Nuevo Contacto',
-                // contactNumber: Only if source IS phone-based, else leave undefined or store in separate field
                 contactNumber: (source_platform === 'whatsapp' || source_platform === 'sms') ? external_id : null,
                 contactNumberClean: (source_platform === 'whatsapp' || source_platform === 'sms') ? external_id.replace(/\+/g, '') : null,
 
-                // Identity Map
+                // Identity Map — links this card to this platform user
                 platform_ids: {
                     [source_platform]: external_id
                 },
@@ -123,8 +114,10 @@ export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<a
 
                 // Standard Kanban Fields
                 lastMessage: message_text,
-                source: source_platform, // Primary source (origin)
-                groupId: groupId,
+                source: source_platform,
+                channel: source_platform, // UI uses 'channel' to show icon
+                primary_channel: source_platform,
+                groupId: inboxGroupId,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 
@@ -137,9 +130,6 @@ export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<a
                     platform: source_platform,
                     media_url: message.media_url || null
                 }],
-
-                // Channel Icon Hints for UI
-                primary_channel: source_platform
             };
 
             transaction.set(cardRef, newCardData);
@@ -147,4 +137,23 @@ export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<a
 
         return { success: true, cardId: cardRef.id, isNew };
     });
+}
+
+// --- HELPER: UPDATE READ STATUS ---
+export async function updateReadStatus(recipientId: string, platform: string = 'whatsapp'): Promise<void> {
+    const db = admin.firestore();
+    let cardsRef = db.collectionGroup('cards').where(`platform_ids.${platform}`, '==', recipientId);
+    let snapshot = await cardsRef.get();
+
+    if (snapshot.empty && platform === 'whatsapp') {
+        cardsRef = db.collectionGroup('cards').where('contactNumberClean', '==', recipientId);
+        snapshot = await cardsRef.get();
+    }
+
+    if (!snapshot.empty) {
+        await snapshot.docs[0].ref.update({
+            lastReadAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        functions.logger.info(`[Read Receipt] Updated lastReadAt for ${recipientId} (${platform})`);
+    }
 }

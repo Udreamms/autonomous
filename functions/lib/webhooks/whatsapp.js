@@ -1,34 +1,32 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.whatsappWebhook = void 0;
-// src/webhooks/whatsapp.ts
 const functions = require("firebase-functions");
-const kanban_1 = require("../helpers/kanban");
+const admin = require("firebase-admin");
+const kanbanOmni_1 = require("../helpers/kanbanOmni");
 const botEngine_1 = require("../helpers/botEngine");
 const TWENTY_FOUR_HOURS_IN_MS = 24 * 60 * 60 * 1000;
 exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
     // --- VERIFICACIÓN DE WEBHOOK (GET) ---
     if (req.method === 'GET') {
         const mode = req.query['hub.mode'];
         const token = req.query['hub.verify_token'];
         const challenge = req.query['hub.challenge'];
-        // Puedes cambiar 'royalty_token_2026' por el que tengas configurado en Meta
-        const VERIFY_TOKEN = ((_a = functions.config().whatsapp) === null || _a === void 0 ? void 0 : _a.verify_token) || 'royalty_token_2026';
+        const VERIFY_TOKEN = ((_a = functions.config().whatsapp) === null || _a === void 0 ? void 0 : _a.verify_token) || 'malamia';
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-            functions.logger.info('Webhook Verified Successfully (GET)');
+            functions.logger.info('WhatsApp Webhook Verified (GET)');
             res.status(200).send(challenge);
             return;
         }
         else {
-            functions.logger.warn('Webhook Verification Failed (GET)');
+            functions.logger.warn('WhatsApp Verification Failed (GET)');
             res.sendStatus(403);
             return;
         }
     }
     // --- RECEPCIÓN DE EVENTOS (POST) ---
     if (req.method === 'POST') {
-        // Responder rápido a Meta para evitar reintentos
         res.status(200).send('EVENT_RECEIVED');
         const { entry } = req.body;
         const change = (_d = (_c = (_b = entry === null || entry === void 0 ? void 0 : entry[0]) === null || _b === void 0 ? void 0 : _b.changes) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.value;
@@ -40,7 +38,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
             if (statusUpdate.status === 'read') {
                 const recipientId = statusUpdate.recipient_id;
                 functions.logger.info(`[Status Update] Message read by ${recipientId}`);
-                await (0, kanban_1.updateReadStatus)(recipientId);
+                await (0, kanbanOmni_1.updateReadStatus)(recipientId, 'whatsapp');
             }
             return;
         }
@@ -50,56 +48,96 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
             return;
         const contact = (_f = change.contacts) === null || _f === void 0 ? void 0 : _f[0];
         const from = message.from; // Formato: 593963142795
-        const contactName = ((_g = contact === null || contact === void 0 ? void 0 : contact.profile) === null || _g === void 0 ? void 0 : _g.name) || 'Usuario';
-        // EXTRACCIÓN DEL MENSAJE
+        const contactName = ((_g = contact === null || contact === void 0 ? void 0 : contact.profile) === null || _g === void 0 ? void 0 : _g.name) || 'Usuario WhatsApp';
+        // EXTRACCIÓN DEL MENSAJE Y NORMALIZACIÓN
         let body = '';
+        let mediaUrl = undefined;
+        let msgType = 'text';
         if (message.type === 'text') {
             body = message.text.body;
+            msgType = 'text';
         }
         else if (message.type === 'interactive') {
             const interactive = message.interactive;
             body = ((_h = interactive.button_reply) === null || _h === void 0 ? void 0 : _h.title) || ((_j = interactive.list_reply) === null || _j === void 0 ? void 0 : _j.title) || '[Interacción]';
+            msgType = 'interactive';
         }
         else if (['image', 'video', 'audio', 'voice', 'document', 'sticker'].includes(message.type)) {
-            body = `[${message.type.toUpperCase()}]${((_k = message[message.type]) === null || _k === void 0 ? void 0 : _k.caption) ? ' ' + message[message.type].caption : ''}`;
+            msgType = message.type === 'voice' ? 'audio' : message.type;
+            body = ((_k = message[message.type]) === null || _k === void 0 ? void 0 : _k.caption) || `[${message.type.toUpperCase()}]`;
+            // Note: Media URL retrieval often requires an extra API call to Meta to get the DL URL
+            // For now we just store the ID or caption. 
+            // In a full implementation, we fetch the media URL here. 
+            mediaUrl = (_l = message[message.type]) === null || _l === void 0 ? void 0 : _l.id;
         }
         else {
             body = `[Mensaje tipo: ${message.type}]`;
+            msgType = 'unknown';
         }
-        functions.logger.info(`📩 Webhook Received from ${from} (Card match attempt): "${body}"`);
+        functions.logger.info(`📩 WhatsApp Webhook: ${from} -> "${body}"`);
         try {
-            // 1. Gestionar Tarjeta en Kanban
-            const cardData = await (0, kanban_1.handleKanbanUpdate)(from, contactName, body, 'whatsapp');
-            if (!cardData) {
-                functions.logger.warn(`[Kanban Sync] Could not find or create card for ${from}`);
+            // 1. Crear Objeto Unificado
+            const unifiedMessage = {
+                source_platform: 'whatsapp',
+                external_id: from,
+                contact_name: contactName,
+                message_text: body,
+                message_type: msgType,
+                timestamp: new Date(parseInt(message.timestamp) * 1000),
+                media_url: mediaUrl,
+                platform_metadata: message
+            };
+            // 2. Gestionar Tarjeta en Kanban (Omnichannel)
+            const result = await (0, kanbanOmni_1.handleKanbanUpdateOmni)(unifiedMessage);
+            if (!result.success) {
+                functions.logger.warn(`[Kanban Sync] Validation failed or error for ${from}`);
                 return;
             }
-            functions.logger.info(`[Kanban Sync] Card ${cardData.isNew ? 'CREATED' : 'UPDATED'} for ${from}`);
-            // 2. Ejecutar Bot (Opcional)
-            const activeBot = await (0, botEngine_1.getActiveBot)();
-            if (activeBot) {
-                // Lógica de reinicio de bot tras 24h
-                const now = new Date();
-                let shouldRestart = false;
-                if (cardData.isNew) {
-                    shouldRestart = true;
-                }
-                else if ((_l = cardData.botState) === null || _l === void 0 ? void 0 : _l.lastInteraction) {
-                    const lastInteraction = cardData.botState.lastInteraction.toDate
-                        ? cardData.botState.lastInteraction.toDate()
-                        : new Date(0);
-                    if ((now.getTime() - lastInteraction.getTime()) > TWENTY_FOUR_HOURS_IN_MS) {
+            const isNew = result.isNew;
+            const cardId = result.cardId;
+            functions.logger.info(`[Kanban Sync] WhatsApp Card ${isNew ? 'CREATED' : 'UPDATED'} (ID: ${cardId})`);
+            // 3. Ejecutar Bot
+            // Fetch complete card data to check bot state
+            const db = admin.firestore();
+            // We need to find the card. If handleKanbanUpdateOmni returned cardId, we can find it directly.
+            // Since cardId is unique in the subcollection, but we don't know the Group ID easily without querying or returning it.
+            // But wait, handleKanbanUpdateOmni creates it, so we can find it.
+            // To be safe and fast, let's query by ID across groups
+            const cardQuery = db.collectionGroup('cards').where(admin.firestore.FieldPath.documentId(), '==', cardId);
+            const cardSnap = await cardQuery.get();
+            if (!cardSnap.empty) {
+                const cardDoc = cardSnap.docs[0];
+                const cardData = Object.assign({ id: cardDoc.id }, cardDoc.data());
+                const activeBot = await (0, botEngine_1.getActiveBot)();
+                if (activeBot) {
+                    const now = new Date();
+                    let shouldRestart = false;
+                    if (isNew) {
                         shouldRestart = true;
                     }
+                    else if ((_m = cardData.botState) === null || _m === void 0 ? void 0 : _m.lastInteraction) {
+                        const lastInteraction = cardData.botState.lastInteraction.toDate
+                            ? cardData.botState.lastInteraction.toDate()
+                            : new Date(0);
+                        if ((now.getTime() - lastInteraction.getTime()) > TWENTY_FOUR_HOURS_IN_MS) {
+                            shouldRestart = true;
+                        }
+                    }
+                    else if (!cardData.botState) {
+                        shouldRestart = true;
+                    }
+                    if (shouldRestart || ((_o = cardData.botState) === null || _o === void 0 ? void 0 : _o.status) === 'active') {
+                        if (shouldRestart) {
+                            // Reset bot state in DB
+                            await cardDoc.ref.update({ botState: admin.firestore.FieldValue.delete() });
+                            delete cardData.botState;
+                        }
+                        await (0, botEngine_1.executeBotFlow)(activeBot, from, cardData, body);
+                    }
                 }
-                else if (!cardData.botState) {
-                    shouldRestart = true;
-                }
-                if (shouldRestart || ((_m = cardData.botState) === null || _m === void 0 ? void 0 : _m.status) === 'active') {
-                    if (shouldRestart)
-                        delete cardData.botState;
-                    await (0, botEngine_1.executeBotFlow)(activeBot, from, cardData, body);
-                }
+            }
+            else {
+                functions.logger.error(`[Bot Error] Could not find card ${cardId} after creation/update.`);
             }
         }
         catch (error) {
@@ -107,7 +145,7 @@ exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
         }
     }
     else {
-        res.sendStatus(405); // Method Not Allowed
+        res.sendStatus(405);
     }
 });
 //# sourceMappingURL=whatsapp.js.map

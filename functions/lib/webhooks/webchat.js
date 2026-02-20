@@ -31,7 +31,25 @@ exports.webchatWebhook = functions.https.onRequest(async (req, res) => {
             }
             functions.logger.info('Received WebChat message', body);
             const unifiedMsg = (0, messageNormalizer_1.normalizeWebChatMessage)(body);
-            await (0, kanbanOmni_1.handleKanbanUpdateOmni)(unifiedMsg);
+            const cardResult = await (0, kanbanOmni_1.handleKanbanUpdateOmni)(unifiedMsg);
+            // Trigger Bot
+            if (cardResult && cardResult.success) {
+                if (unifiedMsg.message_type === 'text') { // Only trigger for text for now
+                    const { getActiveBot, executeBotFlow } = await Promise.resolve().then(() => require('../helpers/botEngine'));
+                    const activeBot = await getActiveBot();
+                    if (activeBot) {
+                        const admin = await Promise.resolve().then(() => require('firebase-admin'));
+                        const db = admin.firestore();
+                        const cardSnap = await db.collectionGroup('cards').where(admin.firestore.FieldPath.documentId(), '==', cardResult.cardId).get();
+                        // For WebChat, external_id is sessionId.
+                        // executeBotFlow needs to know this to continue thread.
+                        if (!cardSnap.empty) {
+                            const fullCardData = Object.assign({ id: cardSnap.docs[0].id }, cardSnap.docs[0].data());
+                            await executeBotFlow(activeBot, unifiedMsg.external_id, fullCardData, unifiedMsg.message_text);
+                        }
+                    }
+                }
+            }
             res.status(200).json({ success: true });
         }
         catch (error) {
