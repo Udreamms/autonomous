@@ -5,7 +5,11 @@ import * as fs from 'fs';
 // Check if firebase-admin has already been initialized to avoid "already exists" error in dev
 if (!admin.apps.length) {
     try {
-        // Try to load the service account file from the project root
+        // In production/Vercel/Cloud Run, this usually uses GOOGLE_APPLICATION_CREDENTIALS
+        // In local dev, we check for serviceAccountKey.json
+        // Note: In Next.js Edge Runtime this might have issues, but we are using Node.js runtime for api routes by default.
+
+        // We can try to load the service account file if it exists locally
         const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
 
         if (fs.existsSync(serviceAccountPath)) {
@@ -13,36 +17,20 @@ if (!admin.apps.length) {
 
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
-                projectId: serviceAccount.project_id,
             });
-            console.log('✅ Firebase Admin initialized successfully with serviceAccountKey.json');
-            console.log(`📊 Project ID: ${serviceAccount.project_id}`);
-            console.log(`📧 Service Account: ${serviceAccount.client_email}`);
+            console.log('Firebase Admin initialized with serviceAccountKey.json');
         } else {
-            // Fallback to default credentials (for production environments like Cloud Run, Vercel, etc.)
-            console.warn('⚠️ serviceAccountKey.json not found, trying default credentials...');
+            console.warn(`[Firebase Admin] Service account file not found at ${serviceAccountPath}`);
+            console.warn("Trying to initialize with default credentials...");
             admin.initializeApp();
-            console.log('✅ Firebase Admin initialized with default credentials');
+            console.log('Firebase Admin initialized with default credentials (likely from environment)');
         }
     } catch (error) {
-        console.error('❌ Failed to initialize Firebase Admin SDK:', error);
-        throw error;
+        console.error('Failed to initialize Firebase Admin:', error);
     }
-} else {
-    console.log('ℹ️ Firebase Admin already initialized');
 }
 
 const db = admin.firestore();
 const auth = admin.auth();
-
-// Test connection on initialization
-db.listCollections()
-    .then(collections => {
-        console.log('✅ Firestore connection successful');
-        console.log(`📁 Available collections: ${collections.map(c => c.id).join(', ') || 'None yet'}`);
-    })
-    .catch(error => {
-        console.error('❌ Firestore connection failed:', error.message);
-    });
 
 export { admin, db, auth };

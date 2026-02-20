@@ -21,7 +21,12 @@ export const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Get Firebase services
-const db = getFirestore(app);
+import { initializeFirestore } from 'firebase/firestore';
+
+// Added experimentalForceLongPolling to bypass some network/firewall issues causing timeouts
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
 const auth = getAuth(app);
 const storage = getStorage(app);
 const functions = getFunctions(app);
