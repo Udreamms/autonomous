@@ -25,7 +25,7 @@ export default function KanbanBoard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { groups, cards, loading, handleDragEnd } = useKanbanBoard(searchTerm);
+  const { groups, cards, loading, handleDragEnd, handleUpdateColor } = useKanbanBoard(searchTerm);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -93,8 +93,10 @@ export default function KanbanBoard() {
               <KanbanColumn
                 key={group.id}
                 group={group}
+                allGroups={groups}
                 cards={cards.filter(c => c.groupId === group.id)}
                 onCardClick={handleCardClick}
+                onUpdateColor={handleUpdateColor}
               />
             ))}
           </div>

@@ -108,11 +108,21 @@ export const useKanbanBoard = (filterTerm: string = '') => {
         }
     };
 
+    const handleUpdateColor = async (groupId: string, color: string) => {
+        try {
+            await updateDoc(doc(db, 'kanban-groups', groupId), { color });
+        } catch (error) {
+            console.error('Error updating color:', error);
+            toast.error('Error al cambiar el color.');
+        }
+    };
+
     return {
         groups,
-        cards, // Component will filter using filterTerm if needed, or we filter here
+        cards,
         loading,
         handleDragEnd,
+        handleUpdateColor,
         setCards
     };
 };

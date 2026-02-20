@@ -11,3 +11,4 @@ export { webchatWebhook } from './webhooks/webchat';
 export { tiktokWebhook } from './webhooks/tiktok';
 export { googleFormsWebhook } from './webhooks/googleForms';
 export { moveCard } from './helpers/kanbanOperations';
+export { migrateCards } from './helpers/migrateCards';
