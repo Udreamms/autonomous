@@ -232,7 +232,7 @@ export const useMessageSender = ({
         }
     };
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
         onDrop,
         accept: {
             'image/*': [],
@@ -242,6 +242,11 @@ export const useMessageSender = ({
         },
         multiple: false
     });
+
+    const handleCancelPreview = () => {
+        setSelectedFile(null);
+        setFilePreviewUrl(null);
+    };
 
     return {
         newMessage,
@@ -257,6 +262,8 @@ export const useMessageSender = ({
         handleSendMessage,
         sendTemplateMessage,
         handleDisplayFileSend,
+        handleCancelPreview,
+        open,
         getRootProps,
         getInputProps,
         isDragActive

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { groupMessagesByDate } from '../utils';
 import { socialPlatforms } from '../constants';
 import { ConversationModalProps } from '../types';
@@ -26,6 +26,11 @@ export const useConversationLogic = (props: ConversationModalProps) => {
     const [activePlatform, setActivePlatform] = useState('WhatsApp');
     const [isEditing, setIsEditing] = useState(false);
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string; } | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const onEmojiClick = (emojiData: any) => {
+        senderLogic.setNewMessage((prev: string) => prev + emojiData.emoji);
+    };
 
     // Sync Active Platform with Card Source
     useEffect(() => {
@@ -110,10 +115,12 @@ export const useConversationLogic = (props: ConversationModalProps) => {
         setIsEditing,
         previewFile,
         setPreviewFile,
+        onEmojiClick,
 
         // Messages
         groupedMessages,
         isMessageRead,
+        messagesEndRef,
         ...senderLogic, // newMessage, isSending, handleSendMessage, etc.
 
         // Operations

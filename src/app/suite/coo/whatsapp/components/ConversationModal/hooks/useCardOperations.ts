@@ -41,6 +41,11 @@ export const useCardOperations = ({
     const [newPayment, setNewPayment] = useState({ type: 'visa' as const, last4: '', expiry: '', brand: '' });
     const [newHistoryComment, setNewHistoryComment] = useState('');
 
+    const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setContactInfo((prev) => ({ ...prev, [name]: value }));
+    };
+
     const handleInfoSave = async () => {
         const rawPhone = liveCardData?.contactNumber || card?.contactNumber;
         const originalPhone = normalizePhoneNumber(rawPhone || '');
@@ -189,7 +194,46 @@ export const useCardOperations = ({
         setNewPayment({ type: 'visa', last4: '', expiry: '', brand: '' });
     };
 
-    // ... (Implement other DELETE/EDIT handlers similarly)
+    const handleEditCheckIn = (checkIn: CheckIn) => {
+        setEditingCheckInId(checkIn.id);
+        setEditText(checkIn.text);
+    };
+
+    const handleSaveEditedCheckIn = async () => {
+        if (!currentCardId || !currentGroupId || !editingCheckInId) return;
+        const updatedCheckIns = liveCardData?.checkIns?.map(c =>
+            c.id === editingCheckInId ? { ...c, text: editText } : c
+        ) || [];
+        await updateDoc(doc(db, 'kanban-groups', currentGroupId, 'cards', currentCardId), {
+            checkIns: updatedCheckIns,
+            history: arrayUnion({
+                id: `hist_${Date.now()}`, type: 'status', content: `Check-in editado: ${editText}`, timestamp: Timestamp.now(), author: 'Agente'
+            })
+        });
+        setEditingCheckInId(null);
+        setEditText('');
+    };
+
+    const handleEditNote = (note: Note) => {
+        setEditingNoteId(note.id);
+        setEditText(note.text);
+    };
+
+    const handleSaveEditedNote = async () => {
+        if (!currentCardId || !currentGroupId || !editingNoteId) return;
+        const updatedNotes = liveCardData?.notes?.map(n =>
+            n.id === editingNoteId ? { ...n, text: editText } : n
+        ) || [];
+        await updateDoc(doc(db, 'kanban-groups', currentGroupId, 'cards', currentCardId), {
+            notes: updatedNotes,
+            history: arrayUnion({
+                id: `hist_${Date.now()}`, type: 'comment', content: `Nota editada: ${editText}`, timestamp: Timestamp.now(), author: 'Agente'
+            })
+        });
+        setEditingNoteId(null);
+        setEditText('');
+    };
+
     const handleDeleteNote = async (noteId: string) => {
         if (!currentCardId || !currentGroupId) return;
         await updateDoc(doc(db, 'kanban-groups', currentGroupId, 'cards', currentCardId), {
@@ -235,8 +279,9 @@ export const useCardOperations = ({
         editText, setEditText,
         isAddingPayment, setIsAddingPayment, newPayment, setNewPayment,
         newHistoryComment, setNewHistoryComment,
-        handleInfoSave, handleSaveNote, handleSaveCheckIn, toggleChecklistItem,
+        handleInfoChange, handleInfoSave, handleSaveNote, handleSaveCheckIn, toggleChecklistItem,
         handleToggleCheckIn, handleSavePaymentMethod, handleDeleteNote, handleDeleteCheckIn,
-        handleSaveHistoryComment, handleSaveMute
+        handleSaveHistoryComment, handleSaveMute,
+        handleEditCheckIn, handleSaveEditedCheckIn, handleEditNote, handleSaveEditedNote
     };
 };
