@@ -48,3 +48,9 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+
+# Debug artifacts
+debug_logs.py
+last_code.json
+last_result.json
+dyad_research/

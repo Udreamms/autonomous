@@ -5,44 +5,52 @@ import * as fs from 'fs';
 // Check if firebase-admin has already been initialized to avoid "already exists" error in dev
 if (!admin.apps.length) {
     try {
-        // Try to load the service account file from the project root
+        // In production/Vercel/Cloud Run, this usually uses GOOGLE_APPLICATION_CREDENTIALS
+        // In local dev, we check for serviceAccountKey.json
+        // Note: In Next.js Edge Runtime this might have issues, but we are using Node.js runtime for api routes by default.
+
+        // 1. Check for Service Account in Environment Variable (Preferred for security/CI/Vercel)
+        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'udreamms-platform-1';
+        const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
         const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
 
-        if (fs.existsSync(serviceAccountPath)) {
+        if (serviceAccountEnv) {
+            try {
+                const serviceAccount = JSON.parse(serviceAccountEnv);
+                admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount),
+                    projectId
+                });
+                console.log(`Firebase Admin initialized for ${projectId} from FIREBASE_SERVICE_ACCOUNT`);
+            } catch (jsonError) {
+                console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable. Ensuring it is a valid JSON string.');
+                throw jsonError;
+            }
+        } else if (fs.existsSync(serviceAccountPath)) {
             const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
-                projectId: serviceAccount.project_id,
+                projectId
             });
-            console.log('✅ Firebase Admin initialized successfully with serviceAccountKey.json');
-            console.log(`📊 Project ID: ${serviceAccount.project_id}`);
-            console.log(`📧 Service Account: ${serviceAccount.client_email}`);
+            console.log(`Firebase Admin initialized for ${projectId} with serviceAccountKey.json`);
         } else {
-            // Fallback to default credentials (for production environments like Cloud Run, Vercel, etc.)
-            console.warn('⚠️ serviceAccountKey.json not found, trying default credentials...');
-            admin.initializeApp();
-            console.log('✅ Firebase Admin initialized with default credentials');
+            console.warn(`[Firebase Admin] Service account not found in ENV or at ${serviceAccountPath}`);
+            console.warn(`Attempting fallback initialization for project: ${projectId}`);
+            admin.initializeApp({
+                projectId
+            });
+            console.log(`Firebase Admin initialized for ${projectId} with default credentials/ADC`);
         }
-    } catch (error) {
-        console.error('❌ Failed to initialize Firebase Admin SDK:', error);
-        throw error;
+    } catch (error: any) {
+        console.error('CRITICAL: Failed to initialize Firebase Admin:', error.message);
+        if (error.code === 'permission-denied' || error.message?.includes('PERMISSION_DENIED')) {
+            console.error('HINT: This is usually because your local environment lacks GOOGLE_APPLICATION_CREDENTIALS or a Service Account Key.');
+        }
     }
-} else {
-    console.log('ℹ️ Firebase Admin already initialized');
 }
 
 const db = admin.firestore();
 const auth = admin.auth();
-
-// Test connection on initialization
-db.listCollections()
-    .then(collections => {
-        console.log('✅ Firestore connection successful');
-        console.log(`📁 Available collections: ${collections.map(c => c.id).join(', ') || 'None yet'}`);
-    })
-    .catch(error => {
-        console.error('❌ Firestore connection failed:', error.message);
-    });
 
 export { admin, db, auth };
