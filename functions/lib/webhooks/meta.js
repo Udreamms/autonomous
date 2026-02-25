@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.metaWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-// import * as admin from 'firebase-admin';
 const messageNormalizer_1 = require("../helpers/messageNormalizer");
 const kanbanOmni_1 = require("../helpers/kanbanOmni");
 const botEngine_1 = require("../helpers/botEngine");

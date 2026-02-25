@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, MessageSquare, Phone, Mail, CreditCard, Radio, Globe, Ghost, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -179,6 +180,7 @@ const INTEGRATIONS: Integration[] = [
 const CATEGORIES: Category[] = ['All', 'Business Messaging', 'Social Media', 'Live Chat', 'SMS', 'Payments'];
 
 export default function ConexionPage() {
+    const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<Category>('All');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -242,7 +244,7 @@ export default function ConexionPage() {
                                         <h2 className="text-lg font-medium tracking-tight mb-4 text-white">{cat}</h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                             {items.map(integration => (
-                                                <IntegrationCard key={integration.id} integration={integration} />
+                                                <IntegrationCard key={integration.id} integration={integration} router={router} />
                                             ))}
                                         </div>
                                     </div>
@@ -252,7 +254,7 @@ export default function ConexionPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {filteredIntegrations.map(integration => (
-                                <IntegrationCard key={integration.id} integration={integration} />
+                                <IntegrationCard key={integration.id} integration={integration} router={router} />
                             ))}
                         </div>
                     )}
@@ -269,7 +271,7 @@ export default function ConexionPage() {
     );
 }
 
-function IntegrationCard({ integration }: { integration: Integration }) {
+function IntegrationCard({ integration, router }: { integration: Integration, router: any }) {
     const isConnected = integration.status === 'Connected';
 
     return (
@@ -301,20 +303,19 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <p className="text-neutral-400 text-sm mb-6 flex-grow">{integration.description}</p>
 
             <div className="mt-auto flex justify-end">
-                <Button
-                    variant={isConnected ? "secondary" : "outline"}
-                    className={`
+                <button
+                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2
                         ${isConnected
-                            ? 'bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border-blue-500/20'
-                            : 'bg-transparent border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white'}
+                            ? 'bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border border-blue-500/20'
+                            : 'bg-transparent border border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white'}
                     `}
                     onClick={() => {
-                        // Aquí iría la redirección a la página de configuración específica
-                        // router.push(`/suite/cto/integrations/${integration.id}`)
+                        console.log("Navigating to Omnichannel inbox...");
+                        router.push(`/suite/coo/omnichannel`);
                     }}
                 >
                     {isConnected ? 'Configurar' : 'Conectar'}
-                </Button>
+                </button>
             </div>
         </div>
     )

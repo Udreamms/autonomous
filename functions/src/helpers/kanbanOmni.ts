@@ -16,7 +16,23 @@ import { UnifiedMessage } from '../types/message';
  * building (FAILED_PRECONDITION), the function degrades gracefully and still
  * creates the card instead of throwing a 500.
  */
+/**
+ * Removes undefined/null values from objects to prevent Firestore write failures.
+ * Firestore throws if any field value is `undefined` (even nested).
+ */
+function sanitizeForFirestore(obj: any): any {
+    if (obj === null || obj === undefined) return null;
+    if (typeof obj !== 'object' || obj instanceof Date) return obj;
+    if (Array.isArray(obj)) return obj.map(sanitizeForFirestore).filter(v => v !== undefined);
+    return Object.fromEntries(
+        Object.entries(obj)
+            .filter(([, v]) => v !== undefined)
+            .map(([k, v]) => [k, sanitizeForFirestore(v)])
+    );
+}
+
 export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<any> {
+
     const db = admin.firestore();
     const {
         source_platform,
@@ -111,7 +127,7 @@ export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<a
             };
 
             if (platform_metadata) {
-                updatePayload[`platform_metadata.${source_platform}`] = platform_metadata;
+                updatePayload[`platform_metadata.${source_platform}`] = sanitizeForFirestore(platform_metadata);
             }
 
             updatePayload.messages = admin.firestore.FieldValue.arrayUnion({
@@ -142,7 +158,7 @@ export async function handleKanbanUpdateOmni(message: UnifiedMessage): Promise<a
                     [source_platform]: external_id
                 },
                 platform_metadata: platform_metadata ? {
-                    [source_platform]: platform_metadata
+                    [source_platform]: sanitizeForFirestore(platform_metadata)
                 } : {},
 
                 // Standard Kanban Fields

@@ -18,6 +18,21 @@ const functions = require("firebase-functions");
  * building (FAILED_PRECONDITION), the function degrades gracefully and still
  * creates the card instead of throwing a 500.
  */
+/**
+ * Removes undefined/null values from objects to prevent Firestore write failures.
+ * Firestore throws if any field value is `undefined` (even nested).
+ */
+function sanitizeForFirestore(obj) {
+    if (obj === null || obj === undefined)
+        return null;
+    if (typeof obj !== 'object' || obj instanceof Date)
+        return obj;
+    if (Array.isArray(obj))
+        return obj.map(sanitizeForFirestore).filter(v => v !== undefined);
+    return Object.fromEntries(Object.entries(obj)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, sanitizeForFirestore(v)]));
+}
 async function handleKanbanUpdateOmni(message) {
     const db = admin.firestore();
     const { source_platform, external_id, contact_name, message_text, message_type, timestamp, platform_metadata } = message;
@@ -95,7 +110,7 @@ async function handleKanbanUpdateOmni(message) {
                 contactNumberClean: (source_platform === 'whatsapp' || source_platform === 'sms') ? external_id.replace(/\+/g, '') : admin.firestore.FieldValue.delete(),
             };
             if (platform_metadata) {
-                updatePayload[`platform_metadata.${source_platform}`] = platform_metadata;
+                updatePayload[`platform_metadata.${source_platform}`] = sanitizeForFirestore(platform_metadata);
             }
             updatePayload.messages = admin.firestore.FieldValue.arrayUnion({
                 sender: 'user',
@@ -122,7 +137,7 @@ async function handleKanbanUpdateOmni(message) {
                     [source_platform]: external_id
                 },
                 platform_metadata: platform_metadata ? {
-                    [source_platform]: platform_metadata
+                    [source_platform]: sanitizeForFirestore(platform_metadata)
                 } : {},
                 // Standard Kanban Fields
                 lastMessage: message_text,

@@ -1,13 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.INSTAGRAM_ACCESS_TOKEN = void 0;
 exports.sendMetaMessage = sendMetaMessage;
 exports.sendMetaMediaMessage = sendMetaMediaMessage;
 exports.markMetaMessageAsRead = markMetaMessageAsRead;
 exports.sendMetaQuickReplies = sendMetaQuickReplies;
 const functions = require("firebase-functions");
 const axios_1 = require("axios");
-// Get token from environment variables (preferred) or config
+// Get tokens from environment variables
 const PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN;
+exports.INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN;
 // Generic function to make requests to Graph API
 async function callSendApi(messageData, token) {
     var _a;

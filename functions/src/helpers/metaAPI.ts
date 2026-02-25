@@ -2,8 +2,9 @@
 import * as functions from 'firebase-functions';
 import axios from 'axios';
 
-// Get token from environment variables (preferred) or config
+// Get tokens from environment variables
 const PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN;
+export const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN;
 
 
 // Generic function to make requests to Graph API

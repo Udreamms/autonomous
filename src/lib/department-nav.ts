@@ -81,7 +81,8 @@ export const CMO_MENU = [
 
 // --- OPERATIONS & PEOPLE ---
 export const COO_MENU = [
-    { href: "/suite/coo/whatsapp", icon: MessageSquare, label: "Unified Inbox" },
+    { href: "/suite/coo/omnichannel", icon: MessageSquare, label: "Omnichannel Inbox" },
+    { href: "/suite/coo/whatsapp", icon: Contact, label: "Kanban Leads" },
     { href: "/suite/coo/visas", icon: Briefcase, label: "Visas & Immigration" },
     { href: "/suite/coo/cx", icon: Users, label: "Customer Experience" },
     { href: "/suite/coo/projects", icon: Layout, label: "Project Management" },
