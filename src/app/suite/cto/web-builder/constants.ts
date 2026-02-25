@@ -12,17 +12,8 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 
   static getDerivedStateFromError(error: any) {
-    // Normalize error to strictly Error object to avoid "Unknown Error"
     const normalizedError = error instanceof Error ? error : new Error(String(error || "Unknown Error Event"));
     return { hasError: true, error: normalizedError };
-  }
-
-  componentDidCatch(error: any, errorInfo: React.ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
-    this.setState({ 
-      errorInfo, 
-      error: error instanceof Error ? error : new Error(JSON.stringify(error)) 
-    });
   }
 
   render() {
@@ -37,11 +28,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
               <p className="text-red-200 font-mono text-sm mb-4 font-bold">
                 {this.state.error?.message || "Unknown Error"}
               </p>
-              {this.state.errorInfo && (
-                <pre className="text-red-400/70 text-xs font-mono whitespace-pre-wrap">
-                  {this.state.errorInfo.componentStack}
-                </pre>
-              )}
             </div>
             <button 
               onClick={() => window.location.reload()}
@@ -53,7 +39,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
         </div>
       );
     }
-
     return this.props.children; 
   }
 }
@@ -65,6 +50,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 )`,
+  "public/favicon.ico": "[BINARY]",
+  "public/robots.txt": "User-agent: *\nAllow: /",
+  "public/assets/.gitkeep": "",
+  "public/assets/placeholder.svg": `<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#111"/><text x="50%" y="50%" font-family="sans-serif" font-size="24" fill="#333" text-anchor="middle">Asset Placeholder</text></svg>`,
   "src/App.tsx": `import { useState } from 'react'
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"

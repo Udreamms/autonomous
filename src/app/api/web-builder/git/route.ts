@@ -70,25 +70,36 @@ export async function POST(req: Request) {
         const githubToken = cookieStore.get('github_token')?.value;
         logToFile(`[Git API] GitHub token found: ${!!githubToken}`);
 
-        // Get project data from Firestore to get repoUrl if not provided
-        let effectiveRepoUrl = repoUrl;
-        let repoName = '';
+        // Project Isolation: Always fetch from DB to ensure we target the correct repository for THIS projectId
+        let dbRepoUrl = '';
+        let dbRepoName = '';
+
+        try {
+            logToFile(`[Git API] Fetching project details for isolation: ${projectId}`);
+            const projectDoc = await db.collection('web-projects').doc(projectId).get();
+            if (projectDoc.exists) {
+                dbRepoUrl = projectDoc.data()?.repoUrl || '';
+                dbRepoName = projectDoc.data()?.repoName || '';
+                logToFile(`[Git API] DB Repo linked: ${dbRepoUrl}`);
+            } else {
+                logToFile(`[Git API] No project document found for id: ${projectId}`);
+            }
+        } catch (e: any) {
+            logToFile(`[Git API] Firestore Admin fetch failed (isolation check): ${e.message}`);
+            // If DB fetch fails, we might be in a restricted environment. 
+            // We'll proceed with extreme caution if repoUrl was provided.
+        }
+
+        let effectiveRepoUrl = dbRepoUrl || repoUrl;
+        let effectiveRepoName = dbRepoName || '';
+
+        if (repoUrl && dbRepoUrl && repoUrl !== dbRepoUrl) {
+            logToFile(`[Git API] WARNING: Client provided repoUrl (${repoUrl}) mismatches DB (${dbRepoUrl}). Favoring DB.`);
+            effectiveRepoUrl = dbRepoUrl;
+        }
 
         if (!effectiveRepoUrl) {
-            logToFile(`[Git API] No repoUrl provided in request, fetching from DB...`);
-            try {
-                // Use a promise-based fetch with timeout if possible, but Firestore Admin usually doesn't time out easily
-                // We'll just log before/after to see if it hangs
-                const projectDoc = await db.collection('web-projects').doc(projectId).get();
-                effectiveRepoUrl = projectDoc.data()?.repoUrl;
-                repoName = projectDoc.data()?.repoName;
-                logToFile(`[Git API] DB Fetch success. repoUrl: ${effectiveRepoUrl}`);
-            } catch (e: any) {
-                logToFile(`[Git API] Firestore Admin repoUrl fetch failed: ${e.message}`);
-                console.warn("[Git API] Firestore Admin repoUrl fetch failed.");
-            }
-        } else {
-            logToFile(`[Git API] Using repoUrl provided in request.`);
+            logToFile(`[Git API] No repository linked for this project.`);
         }
 
         // --- AUTO-CREATE LOGIC ---
@@ -136,23 +147,23 @@ export async function POST(req: Request) {
                     // Construct and verify existing repo
                     const owner = userData.login;
                     effectiveRepoUrl = `https://github.com/${owner}/${sanitizedName}`;
-                    repoName = `${owner}/${sanitizedName}`;
+                    effectiveRepoName = `${owner}/${sanitizedName}`;
 
-                    console.log(`[Git API] Found existing repo: ${repoName}`);
+                    console.log(`[Git API] Found existing repo: ${effectiveRepoName}`);
                 } else {
                     throw new Error(`Failed to create repository: ${errorData.message || createRes.statusText}`);
                 }
             } else {
                 const repoData = await createRes.json();
                 effectiveRepoUrl = repoData.html_url;
-                repoName = repoData.full_name;
+                effectiveRepoName = repoData.full_name;
             }
 
             // Update Firestore with the new repoUrl (Safe to ignore failure here)
             try {
                 await db.collection('web-projects').doc(projectId).update({
                     repoUrl: effectiveRepoUrl,
-                    repoName: repoName || effectiveRepoUrl.split('/').slice(-2).join('/'),
+                    repoName: effectiveRepoName || effectiveRepoUrl.split('/').slice(-2).join('/'),
                     githubConnected: true,
                     lastModified: Date.now()
                 });
@@ -222,7 +233,7 @@ export async function POST(req: Request) {
                             status: 'no_changes',
                             message: 'No changes found to sync',
                             repoUrl: effectiveRepoUrl.replace(/https:\/\/x-access-token:.*@/, 'https://'),
-                            repoName: repoName
+                            repoName: effectiveRepoName
                         });
                     }
                     throw e;
@@ -235,7 +246,7 @@ export async function POST(req: Request) {
                         status: 'has_changes',
                         message: 'Changes detected but not pushed (dry run)',
                         repoUrl: effectiveRepoUrl.replace(/https:\/\/x-access-token:.*@/, 'https://'),
-                        repoName: repoName
+                        repoName: effectiveRepoName
                     });
                 }
 
@@ -269,7 +280,7 @@ export async function POST(req: Request) {
             success: true,
             message: result,
             repoUrl: effectiveRepoUrl.replace(/https:\/\/x-access-token:.*@/, 'https://'),
-            repoName: repoName
+            repoName: effectiveRepoName
         });
 
     } catch (error: any) {

@@ -132,13 +132,16 @@ export const ChatInput = ({
                 {selectedImages.length > 0 && (
                     <div className="flex flex-wrap gap-2 px-4 pb-2">
                         {selectedImages.map(img => (
-                            <div key={img.id} className="relative group w-12 h-12 rounded-lg overflow-hidden border border-[#333]">
-                                <img src={img.url} className="w-full h-full object-cover" alt="preview" />
+                            <div key={img.id} className="relative group w-12 h-12">
+                                <div className="w-full h-full rounded-lg overflow-hidden border border-[#333] bg-[#111]">
+                                    <img src={img.url} className="w-full h-full object-cover" alt="preview" />
+                                </div>
                                 <button
                                     onClick={() => removeImage(img.id)}
-                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-xl z-10 font-bold"
+                                    title="Eliminar imagen"
                                 >
-                                    <ArrowUp className="w-2 h-2 rotate-45" />
+                                    <X className="w-2.5 h-2.5" />
                                 </button>
                             </div>
                         ))}
@@ -193,6 +196,8 @@ export const ChatInput = ({
                                         { id: 'Gemini 3.0 (Preview)', label: 'Gemini 3.0 (Preview) 🚀' },
                                         { id: 'Gemini 2.0 Flash', label: 'Gemini 2.0 Flash' },
                                         { id: 'Gemini 2.0 Pro', label: 'Gemini 2.0 Pro' },
+                                        { id: 'Gemini 1.5 Flash', label: 'Gemini 1.5 Flash ⭐' },
+                                        { id: 'Gemini 1.5 Pro', label: 'Gemini 1.5 Pro ⭐' },
                                         { id: 'Claude 3.5 Sonnet', label: 'Claude 3.5 Sonnet' },
                                         { id: 'GPT-4o', label: 'GPT-4o' },
                                     ].map(m => (

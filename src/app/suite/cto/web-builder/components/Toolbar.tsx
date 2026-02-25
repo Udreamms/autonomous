@@ -1,7 +1,8 @@
 import React from "react";
 import {
     MousePointer2, Hand, ZoomIn, Undo2, Redo2, Globe, MonitorCheck,
-    Smartphone, Tablet, Monitor, Code2, GitCommit, Loader2, History, Settings, ChevronDown, LayoutGrid, Upload, Rocket, Package
+    Smartphone, Tablet, Monitor, Code2, GitCommit, Loader2, History, Settings, ChevronDown, LayoutGrid, Upload, Rocket, Package,
+    RefreshCw, Terminal as TerminalIcon, ExternalLink, Home
 } from "lucide-react";
 import { ReasoningLevel } from "../types";
 import { GitHubSyncButton } from "./GitHubSyncButton";
@@ -27,15 +28,16 @@ interface ToolbarProps {
     showCode: boolean;
     setShowCode: (show: boolean) => void;
     repoUrl: string;
+    deploymentUrl?: string;
     isGenerating: boolean;
     isCommiting: boolean;
     isPublishing: boolean;
     handleCommit: () => void;
-    handlePublish: () => void;
+    handlePublish: (details?: any) => void;
     setShowHistory: (show: boolean) => void;
     setShowSettings: (show: boolean) => void;
     syncStatus: 'synced' | 'syncing' | 'error' | 'pending';
-    triggerSync: () => void;
+    triggerSync: (opts?: any) => void;
 
     // Publish / Deploy Props
     activeProjectName?: string;
@@ -43,17 +45,26 @@ interface ToolbarProps {
     onSyncComplete: () => void;
     onDeployComplete: (url: string) => void;
     resetPan?: () => void;
+    isConfigured?: boolean;
+    handleCloseProject?: () => void;
+
+    // Preview Controls
+    showTerminal?: boolean;
+    setShowTerminal?: (show: boolean) => void;
+    onRefresh?: () => void;
+    isPreviewLoading?: boolean;
 }
 
 export const Toolbar = ({
     activeTool, setActiveTool, viewMode, setViewMode, zoom,
     handleUndo, handleRedo, historyLength, futureLength,
     user, showUserMenu, setShowUserMenu, projects, activeProjectId, handleSwitchProject,
-    showCode, setShowCode, repoUrl, isGenerating, isCommiting, isPublishing,
+    showCode, setShowCode, repoUrl, deploymentUrl, isGenerating, isCommiting, isPublishing,
     handleCommit, handlePublish, setShowHistory, setShowSettings,
     syncStatus, triggerSync,
     activeProjectName, files, onSyncComplete, onDeployComplete,
-    resetPan, setZoom
+    resetPan, setZoom, isConfigured, handleCloseProject,
+    showTerminal, setShowTerminal, onRefresh, isPreviewLoading
 }: ToolbarProps) => {
     const [showPublishMenu, setShowPublishMenu] = React.useState(false);
     const publishMenuRef = React.useRef<HTMLDivElement>(null);
@@ -69,9 +80,20 @@ export const Toolbar = ({
     }, []);
     return (
         <div className="h-14 border-b border-[#222] bg-[#09090b] flex items-center justify-between px-4 z-[90] shrink-0">
-            {/* Left: Dashboard / Project Name */}
-            {/* Left: Dashboard / Project Name */}
+            {/* Left: Exit & Dashboard */}
             <div className="flex items-center gap-4">
+                <button
+                    onClick={handleCloseProject}
+                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group px-2 py-1 rounded-lg hover:bg-white/5"
+                    title="Cerrar Proyecto y Volver al Inicio"
+                >
+                    <div className="p-1.5 rounded-lg group-hover:bg-blue-500/10 transition-colors">
+                        <Home className="w-4 h-4 group-hover:text-blue-400" />
+                    </div>
+                </button>
+
+                <div className="h-4 w-[1px] bg-[#222]"></div>
+
                 <button
                     onClick={() => setShowHistory(true)}
                     className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group"
@@ -157,84 +179,138 @@ export const Toolbar = ({
 
                 <div className="h-4 w-[1px] bg-[#222] mx-2"></div>
 
-                {/* Publish Button / Menu */}
+                {/* Publish Split Button */}
                 {activeProjectId && (
-                    <div className="relative" ref={publishMenuRef}>
-                        {!repoUrl ? (
-                            // Standard Publish Button (No Repo) -> triggers settings/link
+                    <div className="relative flex items-center" ref={publishMenuRef}>
+                        <div className="flex items-center bg-[#111] rounded-full border border-[#222] overflow-hidden shadow-lg shadow-black/20">
+                            {/* Primary Action Button */}
                             <button
-                                onClick={handlePublish}
-                                className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isPublishing ? 'bg-blue-500/10 border-blue-500/20 text-blue-400 cursor-wait' :
-                                    'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20 hover:border-green-500/30 cursor-pointer'
-                                    }`}>
-                                <div className={`w-1.5 h-1.5 rounded-full ${isPublishing ? 'bg-blue-500 animate-pulse' :
-                                    'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] group-hover:bg-green-400'
+                                onClick={!isConfigured ? () => handlePublish() : () => handlePublish(true)}
+                                disabled={isPublishing}
+                                className={`flex items-center gap-2 px-3 py-1.5 transition-all ${isPublishing
+                                    ? 'text-blue-400 cursor-wait'
+                                    : isConfigured
+                                        ? 'text-green-400 hover:bg-white/5'
+                                        : 'text-blue-400 hover:bg-white/5'
+                                    }`}
+                            >
+                                <div className={`w-1.5 h-1.5 rounded-full ${isPublishing
+                                    ? 'bg-blue-400 animate-pulse'
+                                    : isConfigured
+                                        ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'
+                                        : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'
                                     }`} />
-                                <span className="text-[10px] font-bold tracking-widest uppercase">
-                                    {isPublishing ? 'PUBLISHING...' : 'PUBLISH'}
+                                <span className="text-[10px] font-black tracking-widest uppercase truncate max-w-[100px]">
+                                    {isPublishing ? 'PUBLISHING...' : isConfigured ? 'UPDATE LIVE' : 'PUBLISH'}
                                 </span>
                             </button>
-                        ) : (
-                            // Connected State -> Menu
-                            <>
-                                <button
-                                    onClick={() => setShowPublishMenu(!showPublishMenu)}
-                                    className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${showPublishMenu ? 'bg-green-500/20 border-green-500/30' : 'bg-green-500/10 border-green-500/20'
-                                        } text-green-400 hover:bg-green-500/20 hover:border-green-500/30 cursor-pointer`}
-                                >
-                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                                    <span className="text-[10px] font-bold tracking-widest uppercase">PUBLISH</span>
-                                    <ChevronDown className={`w-3 h-3 transition-transform ${showPublishMenu ? 'rotate-180' : ''}`} />
-                                </button>
 
-                                {/* Dropdown Menu */}
-                                {showPublishMenu && (
-                                    <div className="absolute top-full right-0 mt-2 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1">
-                                        <div className="p-2 flex flex-col gap-1">
-                                            <div className="px-2 py-1.5 rounded-lg hover:bg-[#27272a] transition-colors flex items-center justify-between group">
-                                                <div className="flex items-center gap-2 text-gray-300 group-hover:text-white">
-                                                    <Upload className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-                                                    <span className="text-xs font-medium">Sync Source</span>
-                                                </div>
-                                                {/* Use raw component but style it minimally or just use the button directly provided? 
-                                                    The component renders a button. Let's wrap it nicely. */}
-                                                <GitHubSyncButton
-                                                    projectId={activeProjectId}
-                                                    repoUrl={repoUrl}
-                                                    files={files}
-                                                    onSyncComplete={() => {
-                                                        onSyncComplete();
-                                                        triggerSync(); // Trigger local sync logic too if needed
-                                                    }}
-                                                />
-                                            </div>
+                            {/* Dropdown Chevron */}
+                            <div className="w-[1px] h-4 bg-[#222]"></div>
+                            <button
+                                onClick={() => setShowPublishMenu(!showPublishMenu)}
+                                className={`p-1.5 transition-all hover:bg-white/5 ${showPublishMenu ? 'text-white' : 'text-gray-500'}`}
+                            >
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showPublishMenu ? 'rotate-180' : ''}`} />
+                            </button>
+                        </div>
 
-                                            <div className="h-[1px] bg-[#27272a] my-1" />
-
-                                            <div className="px-2 py-1.5 rounded-lg hover:bg-[#27272a] transition-colors flex items-center justify-between group">
-                                                <div className="flex items-center gap-2 text-gray-300 group-hover:text-white">
-                                                    <Rocket className="w-4 h-4 text-gray-500 group-hover:text-purple-400" />
-                                                    <span className="text-xs font-medium">Deploy Live</span>
-                                                </div>
-                                                <DeployButton
-                                                    projectId={activeProjectId}
-                                                    repoUrl={repoUrl}
-                                                    projectName={activeProjectName}
-                                                    onDeployComplete={onDeployComplete}
-                                                />
+                        {/* Dropdown Menu */}
+                        {showPublishMenu && (
+                            <div className="absolute top-full right-0 mt-2 w-60 bg-[#0c0c0e] border border-[#222] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                                <div className="p-2 flex flex-col gap-1">
+                                    <button
+                                        onClick={() => { handlePublish(true); setShowPublishMenu(false); }}
+                                        disabled={isPublishing || !isConfigured}
+                                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors flex items-center gap-3 group text-left disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                        <div className="p-1.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
+                                            <Rocket className="w-4 h-4 text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-white">Publicar Cambios</div>
+                                            <div className="text-[10px] text-gray-500">
+                                                {isConfigured ? "Subir última versión" : "Configuración requerida"}
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-                            </>
+                                    </button>
+
+                                    <button
+                                        onClick={() => { handlePublish(null); setShowPublishMenu(false); }}
+                                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors flex items-center gap-3 group text-left"
+                                    >
+                                        <div className="p-1.5 bg-amber-500/10 rounded-lg group-hover:bg-amber-500/20 transition-colors">
+                                            <Globe className="w-4 h-4 text-amber-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-white">Configuración del Dominio</div>
+                                            <div className="text-[10px] text-gray-500">Editor de URL y DNS</div>
+                                        </div>
+                                    </button>
+
+                                    {deploymentUrl && (
+                                        <a
+                                            href={deploymentUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors flex items-center gap-3 group text-left"
+                                        >
+                                            <div className="p-1.5 bg-green-500/10 rounded-lg group-hover:bg-green-500/20 transition-colors">
+                                                <ExternalLink className="w-4 h-4 text-green-400" />
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-bold text-white">Ver Sitio en Vivo</div>
+                                                <div className="text-[10px] text-gray-500">Abrir en nueva pestaña</div>
+                                            </div>
+                                        </a>
+                                    )}
+
+                                    <div className="h-[1px] bg-[#222] my-1" />
+
+                                    <button
+                                        onClick={() => { setShowSettings(true); setShowPublishMenu(false); }}
+                                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors flex items-center gap-3 group text-left"
+                                    >
+                                        <div className="p-1.5 bg-gray-500/10 rounded-lg group-hover:bg-gray-500/20 transition-colors">
+                                            <Settings className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-white">Configuración General</div>
+                                            <div className="text-[10px] text-gray-500">Metadata y ajustes del proyecto</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
+
+                {/* Preview Controls (Terminal & Refresh) */}
+                <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl border border-[#222]">
+                    <button
+                        onClick={() => setShowTerminal?.(!showTerminal)}
+                        className={`p-1.5 rounded-lg transition-all ${showTerminal ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        title="Show Terminal"
+                    >
+                        <TerminalIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        onClick={onRefresh}
+                        disabled={isPreviewLoading}
+                        className={`p-1.5 rounded-lg transition-all text-gray-500 hover:text-white hover:bg-white/5 disabled:opacity-30`}
+                        title="Refresh Preview"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isPreviewLoading ? 'animate-spin text-blue-400' : ''}`} />
+                    </button>
+                </div>
+
+                <div className="h-4 w-[1px] bg-[#222] mx-1"></div>
 
                 {/* Code Toggle */}
                 <button
                     onClick={() => setShowCode(!showCode)}
                     className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${showCode ? 'bg-white text-black border-white' : 'bg-[#111] hover:bg-[#222] border-[#222] text-gray-400'}`}
+                    title="Code Editor"
                 >
                     <Code2 className="w-4 h-4" />
                 </button>

@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from "react";
 import { ChatMessage, ChatStep } from "../types";
 import { Check, CheckCircle2, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { PlanCard } from "./PlanCard";
+import { ReasoningBlock } from "./ReasoningBlock";
 
 interface ChatMessageListProps {
     messages: ChatMessage[];
@@ -17,6 +18,11 @@ export const ChatMessageList = ({ messages, isGenerating }: ChatMessageListProps
         }
     }, [messages, isGenerating]);
 
+    // Helper to strip <think> tags from content
+    const cleanContent = (content: string) => {
+        return content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    };
+
     return (
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar scroll-smooth">
             {messages.length === 0 ? (
@@ -25,7 +31,7 @@ export const ChatMessageList = ({ messages, isGenerating }: ChatMessageListProps
                         <Sparkles className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-sm font-bold text-white mb-2 uppercase tracking-widest">Web Builder AI</h3>
-                    <p className="text-[11px] text-gray-400 leading-relaxed max-w-[200px]">Empieza una conversaci├│n para generar el c├│digo de tu sitio web.</p>
+                    <p className="text-[11px] text-gray-400 leading-relaxed max-w-[200px]">Empieza una conversación para generar el código de tu sitio web.</p>
                 </div>
             ) : (
                 messages.map((msg, idx) => (
@@ -34,14 +40,25 @@ export const ChatMessageList = ({ messages, isGenerating }: ChatMessageListProps
                             ? 'bg-blue-600 text-white rounded-tr-none'
                             : 'bg-[#18181b] border border-[#27272a] text-gray-200 rounded-tl-none'
                             }`}>
+
+                            {/* Reasoning Block (Dyad/Adorable port) */}
+                            {msg.role === 'ai' && (
+                                <ReasoningBlock
+                                    content={msg.content}
+                                    steps={msg.steps}
+                                    thinkingTime={msg.thinkingTime}
+                                    isGenerating={isGenerating && idx === messages.length - 1}
+                                />
+                            )}
+
                             {/* Message Content */}
                             <div className={msg.role === 'ai' && msg.steps?.some(s => s.status === 'current') ? 'opacity-50 blur-[0.5px]' : ''}>
                                 {(() => {
-                                    const trimmed = msg.content.trim();
-                                    if (trimmed === "" && msg.images && msg.images.length > 0) {
+                                    const cleaned = msg.role === 'ai' ? cleanContent(msg.content) : msg.content.trim();
+                                    if (cleaned === "" && msg.images && msg.images.length > 0) {
                                         return null;
                                     }
-                                    return msg.content.split('\n').map((line, i) => (
+                                    return cleaned.split('\n').map((line, i) => (
                                         <p key={i} className="text-xs mb-1.5 last:mb-0 leading-relaxed min-h-[1em]">{line}</p>
                                     ));
                                 })()}
@@ -71,42 +88,8 @@ export const ChatMessageList = ({ messages, isGenerating }: ChatMessageListProps
                                     />
                                 )}
 
-                                {/* Checklist of changes */}
-                                {msg.checklist && msg.checklist.length > 0 && (
-                                    <div className="mt-3 pt-3 border-t border-[#1a1a1a] space-y-1.5">
-                                        <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                            <div className="w-0.5 h-2 bg-blue-500 rounded-full"></div>
-                                            Cambios realizados
-                                        </div>
-                                        {msg.checklist.map((item, i) => (
-                                            <div key={i} className="flex items-center gap-2 group">
-                                                <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${item.completed ? 'bg-blue-500/20 text-blue-400' : 'bg-[#111] text-gray-600'}`}>
-                                                    <Check className="w-2 h-2" />
-                                                </div>
-                                                <span className={`text-[10px] transition-colors ${item.completed ? 'text-gray-300' : 'text-gray-600 italic'}`}>
-                                                    {item.label}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
-                            {/* Thinking Steps */}
-                            {msg.steps && (
-                                <div className="mt-3 pt-3 border-t border-[#1a1a1a] space-y-2">
-                                    {msg.steps.map(step => (
-                                        <div key={step.id} className="flex items-center gap-2.5">
-                                            {step.status === 'done' ? <CheckCircle2 className="w-3 h-3 text-blue-500" /> :
-                                                step.status === 'current' ? <Loader2 className="w-3 h-3 text-blue-400 animate-spin" /> :
-                                                    <div className="w-3 h-3 rounded-full border border-gray-800" />}
-                                            <span className={`text-[10px] font-medium tracking-tight ${step.status === 'current' ? 'text-blue-400' : step.status === 'done' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                {step.label}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
                         <span className="text-[9px] text-gray-600 mt-1 mx-1 font-mono uppercase tracking-tighter">
                             {msg.role === 'user' ? 'T├║' : 'AI Assistant'}

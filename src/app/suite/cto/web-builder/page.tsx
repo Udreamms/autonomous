@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Maximize2, Minimize2, Sparkles, Plus, History } from "lucide-react";
 
 import { INITIAL_FILES } from "./constants";
@@ -21,10 +23,13 @@ import { CodeEditor } from "./components/CodeEditor";
 import { DashboardModal } from "./components/DashboardModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { NewProjectModal } from "./components/NewProjectModal";
-// removed duplicate import
+import { PublishModal } from "./components/PublishModal";
 import { ToastContainer, useToast } from "./components/Toast";
+import { BrowserAddressBar } from "./components/BrowserAddressBar";
 
-export default function WebBuilderPage() {
+import { Suspense } from "react";
+
+function WebBuilderContent() {
     // --- Global UI State ---
     const [activeTool, setActiveTool] = useState("select");
     const [viewMode, setViewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
@@ -33,9 +38,60 @@ export default function WebBuilderPage() {
     const [isMaximized, setIsMaximized] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showPublishModal, setShowPublishModal] = useState(false);
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["src", "src/app", "src/components"]));
+    const [previewPath, setPreviewPath] = useState("");
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    // Load GitHub user from cookie on mount (and after OAuth)
+    const loadGitHubUser = useCallback(async () => {
+        try {
+            const res = await fetch('/api/auth/github/user', { cache: 'no-store' });
+            const data = await res.json();
+            setGithubUser(data.user || null);
+        } catch {
+            setGithubUser(null);
+        }
+    }, []);
+
+    useEffect(() => { loadGitHubUser(); }, [loadGitHubUser]);
+
+    // Handle GitHub OAuth callback
+    useEffect(() => {
+        const connected = searchParams.get('github_connected');
+        const githubLoginParam = searchParams.get('github_user');
+        const projectIdFromUrl = searchParams.get('projectId'); // projectId passed through OAuth state
+        const error = searchParams.get('github_error');
+
+        if (connected === '1') {
+            showToast(`✅ GitHub conectado${githubLoginParam ? ` como @${githubLoginParam}` : ''} correctamente`, 'success');
+            loadGitHubUser();
+
+            // Save per-project GitHub owner directly to Firestore using projectId from URL
+            if ((projectIdFromUrl || activeProjectId) && githubLoginParam) {
+                const targetProjectId = projectIdFromUrl || activeProjectId!;
+                fetch(`https://api.github.com/users/${githubLoginParam}`)
+                    .then(r => r.json())
+                    .then(u => updateDoc(doc(db, 'web-projects', targetProjectId), {
+                        githubOwner: u.login || githubLoginParam,
+                        githubAvatar: u.avatar_url || '',
+                        githubConnected: true
+                    }))
+                    .catch(() => updateDoc(doc(db, 'web-projects', targetProjectId), {
+                        githubOwner: githubLoginParam,
+                        githubConnected: true
+                    }));
+            }
+
+            router.replace(window.location.pathname);
+        } else if (error) {
+            showToast(`Error conectando GitHub: ${decodeURIComponent(error)}`, 'info');
+            router.replace(window.location.pathname);
+        }
+    }, [searchParams]);
 
     // AI Config
     const [selectedModel, setSelectedModel] = useState("Gemini 2.0 Flash");
@@ -43,6 +99,9 @@ export default function WebBuilderPage() {
 
     // Runtime Monitoring (Bridge between Visor and Editor)
     const [runtimeErrors, setRuntimeErrors] = useState<Record<string, string>>({});
+    const [showTerminal, setShowTerminal] = useState(false);
+    const [refreshSignal, setRefreshSignal] = useState(0);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
     // --- Viewport / Pan State ---
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -81,17 +140,27 @@ export default function WebBuilderPage() {
 
     // Repo/Auth
     const [user] = useAuthState(auth);
-    const [repoUrl, setRepoUrl] = useState("");
-    const [deploymentUrl, setDeploymentUrl] = useState("");
-    const [isCommiting, setIsCommiting] = useState(false);
-    const [isPublishing, setIsPublishing] = useState(false);
-    const [githubUser, setGithubUser] = useState<any>(null);
-
     // --- Hooks Integration ---
     const {
         projects, setProjects, activeProjectId, activeProject,
-        handleNewProject: createProject, handleSwitchProject, deleteProject, updateProjectLastModified, updateProject
+        handleNewProject: createProject, handleSwitchProject, deleteProject,
+        updateProjectLastModified, updateProject, updateProjectRepo
     } = useProjects(INITIAL_FILES);
+
+    const handleCloseProject = useCallback(() => {
+        // Clear project from memory and localStorage (via switch to null)
+        handleSwitchProject('');
+        // Force refresh to the dashboard URL to ensure a clean state
+        window.location.href = "/suite/cto/web-builder";
+    }, [handleSwitchProject]);
+
+    // Derived states
+    const deploymentUrl = activeProject?.deploymentUrl || "";
+    const repoUrl = activeProject?.repoUrl || "";
+
+    const [isCommiting, setIsCommiting] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [githubUser, setGithubUser] = useState<any>(null);
 
     const {
         files, setFiles, updateFiles, activeFile, setActiveFile, generatedTheme,
@@ -118,22 +187,51 @@ export default function WebBuilderPage() {
         selectedModel, reasoningLevel
     );
 
-    // --- Derived Effects ---
-    useEffect(() => {
-        if (activeProject) {
-            setRepoUrl(activeProject.repoUrl || "");
-            setDeploymentUrl(activeProject.deploymentUrl || "");
-        } else {
-            setRepoUrl("");
-            setDeploymentUrl("");
+    // Helper to propagate navigation to the iframe
+    const propagateNavigation = useCallback((path: string) => {
+        const iframe = document.querySelector('iframe');
+        if (iframe && iframe.contentWindow) {
+            console.log("[Parent] Propagating navigation to iframe:", path);
+            iframe.contentWindow.postMessage({ type: 'navigate-to', path: path.startsWith('/') ? path : '/' + path }, '*');
         }
-    }, [activeProject]);
+    }, []);
+
+    // Sync previewPath with activeFile (Filtering)
+    useEffect(() => {
+        if (activeFile) {
+            const isAppFile = activeFile.startsWith('src/app/');
+            if (!isAppFile) {
+                console.log("[Parent Sync] activeFile is not in src/app/, skipping path sync:", activeFile);
+                return;
+            }
+
+            const fileName = activeFile.split('/').pop()?.replace('.tsx', '') || "";
+            let targetPath = "";
+            if (activeFile === 'src/app/page.tsx') {
+                targetPath = "";
+            } else {
+                // Better path resolution for src/app/folder/page.tsx or src/app/file.tsx
+                targetPath = activeFile
+                    .replace('src/app/', '')
+                    .replace('/page.tsx', '')
+                    .replace('.tsx', '');
+            }
+
+            console.log("[Parent Sync] activeFile changed to:", activeFile, "Setting previewPath to:", targetPath);
+            setPreviewPath(targetPath);
+            propagateNavigation(targetPath || "/");
+        }
+    }, [activeFile, propagateNavigation]);
+
+    // Per-project GitHub user
+    const projectGithubUser = activeProject?.githubOwner
+        ? { login: activeProject.githubOwner, avatar_url: activeProject.githubAvatar || '' }
+        : null;
 
     // Cleanup when deleting project
     const onProjectDelete = (id: string) => {
         deleteProject(id);
         deleteProjectFiles(id);
-        // Conversations are subcollections, we'll let Firestore cleanup or handle later
     };
 
     const handleClearCache = () => {
@@ -145,7 +243,7 @@ export default function WebBuilderPage() {
         await createProject(name);
     };
 
-    // --- Message Handling (Bridge for AI Actions) ---
+    // --- Message Handling ---
     useEffect(() => {
         const handleGlobalMessage = (e: MessageEvent) => {
             if (e.data?.type === 'ask-ai-fix') {
@@ -153,70 +251,114 @@ export default function WebBuilderPage() {
                 showToast(`Analizando error en ${file}...`, "info");
                 handleGenerate(`Tengo este error en el archivo ${file}: "${error}". Por favor, arréglalo asegurándote de que todas las dependencias e importaciones estén correctas.`);
             }
+
+            if (e.data?.type === 'navigation') {
+                const { path } = e.data;
+                console.log("[Parent] Received navigation event from iframe:", path);
+
+                // Normalize path: ignore leading slash, treat empty as root
+                const normalized = path === '/' ? "" : path.startsWith('/') ? path.substring(1) : path;
+                setPreviewPath(normalized);
+
+                // Extended search for the corresponding file
+                const searchPaths = [
+                    `src/app/${normalized}/page.tsx`,
+                    `src/app/${normalized}.tsx`,
+                    `src/app/page.tsx`, // Fallback for root
+                    `src/components/${normalized}.tsx`
+                ];
+
+                // Specific fix for "main" routes often generated by AI
+                if (normalized === "" || normalized === "main") {
+                    searchPaths.unshift("src/app/main.tsx", "src/app/main/page.tsx", "src/app/page.tsx");
+                }
+
+                const found = searchPaths.find(p => files[p]);
+                console.log("[Parent] Map navigation path", normalized, "to file:", found || "NOT FOUND");
+                if (found && found !== activeFile) {
+                    setActiveFile(found);
+                }
+            }
+
+            if (e.data?.type === 'inspect-element') {
+                const { path, loc, textContext, className } = e.data;
+
+                if (path && loc) {
+                    setActiveFile(path);
+                    const line = parseInt(loc.split(':')[0]);
+                    window.dispatchEvent(new CustomEvent('editor-goto-line', {
+                        detail: { path, line }
+                    }));
+                } else {
+                    const searchTerm = textContext || className?.split(' ')[0];
+                    if (searchTerm) {
+                        showToast(`Sincronizando: ${searchTerm}`, "info");
+                        window.dispatchEvent(new CustomEvent('editor-search', { detail: searchTerm }));
+                    }
+                }
+            }
         };
         window.addEventListener('message', handleGlobalMessage);
         return () => window.removeEventListener('message', handleGlobalMessage);
     }, [handleGenerate, showToast]);
 
-    // 1. Initial Load: GitHub user from cookie
-    useEffect(() => {
-        const userCookie = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('github_user='));
-
-        if (userCookie) {
-            try {
-                const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]));
-                setGithubUser(prev => {
-                    // Only update if the data has actually changed to avoid re-render loops
-                    if (JSON.stringify(prev) === JSON.stringify(userData)) return prev;
-                    return userData;
-                });
-            } catch (e) {
-                console.error('Failed to parse GitHub user cookie', e);
-            }
-        }
-    }, []);
-
-    // 2. Handle redirect-back from GitHub auth (URL params)
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const pid = params.get('projectId');
-        const connected = params.get('github_connected');
-
-        if (connected === 'true') {
-            showToast("¡Cuenta de GitHub conectada!", "success");
-            setShowSettings(true);
-
-            if (pid && pid !== activeProjectId) {
-                handleSwitchProject(pid);
-            }
-
-            // Clean up URL to prevent multiple triggers on refresh
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
-        }
-    }, [activeProjectId, handleSwitchProject, showToast]);
-
     const handleDisconnectGitHub = async () => {
         try {
-            await fetch('/api/auth/github/disconnect', { method: 'POST' });
-            setGithubUser(null);
             if (activeProjectId) {
-                updateProject(activeProjectId, {
+                await updateProject(activeProjectId, {
                     repoUrl: "",
                     repoName: "",
                     githubConnected: false
                 });
             }
-            showToast("GitHub account disconnected", "success");
+            showToast("Repositorio desvinculado de este proyecto", "success");
         } catch (e: any) {
-            showToast("Failed to disconnect GitHub", "error");
+            showToast("Error al desvincular el repositorio", "error");
         }
     };
 
+    // Auto-create repo logic
+    useEffect(() => {
+        if (!githubUser || !activeProjectId || !activeProject) return;
+        if (activeProject.repoUrl || repoUrl) return;
+
+        const pendingKey = `pendingAutoCreate_${activeProjectId}`;
+        if (!localStorage.getItem(pendingKey)) return;
+        localStorage.removeItem(pendingKey);
+
+        const autoCreateRepo = async () => {
+            try {
+                const res = await fetch('/api/web-builder/git', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectId: activeProjectId,
+                        action: 'sync',
+                        autoCreate: true,
+                        projectName: activeProject.name,
+                        message: `Initial commit — ${activeProject.name}`,
+                        files: {}
+                    })
+                });
+                const result = await res.json();
+                if (result?.repoUrl) {
+                    const finalRepoUrl = result.repoUrl;
+                    await updateProject(activeProjectId, {
+                        repoUrl: finalRepoUrl,
+                        repoName: result.repoName || finalRepoUrl.split('/').slice(-2).join('/'),
+                        githubConnected: true
+                    });
+                    showToast(`📁 Repositorio "${result.repoName || finalRepoUrl.split('/').pop()}" creado en GitHub`, 'success');
+                }
+            } catch (e) {
+                console.error('[AutoCreate]', e);
+            }
+        };
+
+        autoCreateRepo();
+    }, [githubUser?.login, activeProjectId, !!activeProject]);
+
     const handleDeployComplete = (url: string) => {
-        setDeploymentUrl(url);
         if (activeProjectId) {
             updateProject(activeProjectId, {
                 deploymentUrl: url,
@@ -225,15 +367,30 @@ export default function WebBuilderPage() {
         }
         showToast("Project deployed successfully!", "success");
     };
-    const handlePublish = async () => {
+
+    const handlePublish = async (details?: any) => {
         if (!activeProjectId) return;
+
+        if (!details) {
+            setShowPublishModal(true);
+            return;
+        }
+
+        const isUpdate = details === true;
+        const publishDetails = isUpdate ? {
+            url: activeProject?.customUrl || activeProject?.name?.toLowerCase().replace(/\s+/g, '-'),
+            domain: activeProject?.customDomain || "",
+            description: activeProject?.description || "",
+            visibility: activeProject?.visibility || "public"
+        } : details;
+
 
         setIsPublishing(true);
         try {
             if (!repoUrl) {
-                showToast("Detección de repositorio: Creando uno nuevo para este proyecto...", "info");
+                showToast(`Iniciando lanzamiento de "${publishDetails.url}"...`, "info");
             } else {
-                showToast("Sincronizando cambios a GitHub...", "info");
+                showToast("Sincronizando y actualizando despliegue...", "info");
             }
 
             const result = await triggerSync({
@@ -246,11 +403,17 @@ export default function WebBuilderPage() {
                 await updateProject(activeProjectId, {
                     repoUrl: result.repoUrl,
                     repoName: result.repoName || result.repoUrl.split('/').slice(-2).join('/'),
-                    githubConnected: true
+                    githubConnected: true,
+                    customUrl: publishDetails.url,
+                    customDomain: publishDetails.domain,
+                    description: publishDetails.description,
+                    visibility: publishDetails.visibility
                 });
             }
 
             setIsPublishing(false);
+            setShowPublishModal(false);
+
             if (result?.error) {
                 showToast(result.error, "error");
             } else {
@@ -265,14 +428,10 @@ export default function WebBuilderPage() {
 
     return (
         <div className="h-screen w-full bg-[#050505] text-white flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
-            {/* Toast Notifications */}
             <ToastContainer toasts={toasts} onRemove={removeToast} />
-
-            {/* Top Toolbar */}
 
             {activeProjectId ? (
                 <>
-                    {/* Top Toolbar */}
                     <Toolbar
                         activeTool={activeTool} setActiveTool={setActiveTool}
                         viewMode={viewMode} setViewMode={setViewMode}
@@ -283,13 +442,12 @@ export default function WebBuilderPage() {
                         projects={projects} activeProjectId={activeProjectId} handleSwitchProject={handleSwitchProject}
                         showCode={showCode} setShowCode={setShowCode}
                         repoUrl={repoUrl} isGenerating={isGenerating}
+                        deploymentUrl={deploymentUrl}
                         isCommiting={isCommiting} isPublishing={isPublishing}
                         handleCommit={() => setIsCommiting(true)}
                         handlePublish={handlePublish}
                         setShowHistory={setShowHistory} setShowSettings={setShowSettings}
                         syncStatus={syncStatus} triggerSync={triggerSync}
-
-                        // New Props for Dropdown
                         activeProjectName={activeProject?.name}
                         files={files}
                         onSyncComplete={() => {
@@ -298,9 +456,13 @@ export default function WebBuilderPage() {
                         }}
                         onDeployComplete={handleDeployComplete}
                         resetPan={resetPan}
+                        isConfigured={!!activeProject?.customUrl}
+                        handleCloseProject={handleCloseProject}
+                        showTerminal={showTerminal}
+                        setShowTerminal={setShowTerminal}
+                        onRefresh={() => setRefreshSignal(s => s + 1)}
+                        isPreviewLoading={isPreviewLoading}
                     />
-
-                    {/* GitHub Sync and Deploy Buttons REMOVED (Moved to Toolbar) */}
 
                     <div className="flex-1 flex overflow-hidden relative">
                         <ChatSidebar
@@ -321,9 +483,7 @@ export default function WebBuilderPage() {
                             cancelGeneration={cancelGeneration}
                         />
 
-                        {/* Main Canvas Area */}
                         <div className="flex-1 overflow-hidden relative flex items-center justify-center bg-[#050505]">
-                            {/* Background Grid */}
                             <div className="absolute inset-0 opacity-[0.03]"
                                 style={{
                                     backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
@@ -331,7 +491,6 @@ export default function WebBuilderPage() {
                                 }}
                             />
 
-                            {/* Code Editor Modal */}
                             <CodeEditor
                                 showCode={showCode}
                                 setShowCode={setShowCode}
@@ -344,7 +503,6 @@ export default function WebBuilderPage() {
                                 runtimeErrors={runtimeErrors}
                             />
 
-                            {/* Device Simulator */}
                             <div
                                 onMouseDown={handlePanStart}
                                 onMouseMove={handlePanMove}
@@ -354,39 +512,53 @@ export default function WebBuilderPage() {
                                     ? 'w-full h-full rounded-none border-0'
                                     : viewMode === 'mobile' ? 'w-[375px] h-[812px] rounded-[3rem] border-8 border-[#1a1a1a]'
                                         : viewMode === 'tablet' ? 'w-[768px] h-[1024px] rounded-[2rem] border-8 border-[#1a1a1a]'
-                                            : 'w-[92%] h-[86%] rounded-xl border border-[#1a1a1a]'
-                                    } bg-white overflow-hidden relative group ${activeTool === 'hand' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+                                            : 'w-[92%] h-[86%] min-h-[86%] max-h-[86%] rounded-xl border border-[#1a1a1a]'
+                                    } bg-white overflow-hidden relative group ${activeTool === 'hand' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} flex flex-col`}
                                 style={{
                                     transform: `scale(${zoom / 100}) translate(${panOffset.x}px, ${panOffset.y}px)`,
                                     transformOrigin: 'center center'
                                 }}
                             >
-                                {/* Panning Overlay (Blocks iframe interaction while dragging) */}
                                 {activeTool === 'hand' && (
                                     <div className="absolute inset-0 z-20" />
                                 )}
 
-                                {/* Address Bar */}
-                                <div className="absolute top-0 left-0 right-0 h-8 bg-[#f5f5f5] flex items-center px-4 gap-2 border-b border-gray-200 z-10">
-                                    <div className="flex gap-1.5">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-red-400/80"></div>
-                                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400/80"></div>
-                                        <div className="w-2.5 h-2.5 rounded-full bg-green-400/80"></div>
-                                    </div>
-                                    <div className="flex-1 max-w-md mx-auto h-5 bg-white rounded flex items-center px-2 text-[10px] text-gray-400 shadow-sm">
-                                        {`localhost:3000/${activeFile.split('/').pop()?.replace('.tsx', '')}`}
-                                    </div>
-                                    <button onClick={() => setIsMaximized(!isMaximized)} className="p-1 rounded hover:bg-gray-200 text-gray-500">
-                                        {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                                    </button>
-                                </div>
+                                <BrowserAddressBar
+                                    url={previewPath}
+                                    onNavigate={(path) => {
+                                        setPreviewPath(path);
+                                        propagateNavigation(path);
+                                        const possibleFiles = [
+                                            `src/app/${path}/page.tsx`,
+                                            `src/app/${path}.tsx`,
+                                            `src/components/${path}.tsx`
+                                        ];
+                                        const found = possibleFiles.find(p => files[p]);
+                                        if (found) {
+                                            setActiveFile(found);
+                                        } else {
+                                            showToast(`Ruta /${path} no mapeada a archivo local`, "info");
+                                        }
+                                    }}
+                                    onRefresh={() => setRefreshSignal(s => s + 1)}
+                                    isRefreshing={isPreviewLoading}
+                                    onOpenExternal={() => {
+                                        if (deploymentUrl) window.open(deploymentUrl, '_blank');
+                                        else showToast("Despliegue no disponible todavía", "info");
+                                    }}
+                                    isMaximized={isMaximized}
+                                    onToggleMaximize={() => setIsMaximized(!isMaximized)}
+                                />
 
-                                {/* Preview Area */}
-                                <div className="mt-8 h-full overflow-y-auto bg-white text-black">
+                                <div className="flex-1 overflow-hidden bg-white text-black relative">
                                     <PreviewArea
                                         files={files}
                                         activeFile={activeFile}
                                         setRuntimeErrors={setRuntimeErrors}
+                                        showTerminal={showTerminal}
+                                        setShowTerminal={setShowTerminal}
+                                        refreshSignal={refreshSignal}
+                                        onLoadingChange={setIsPreviewLoading}
                                     />
                                 </div>
                             </div>
@@ -394,9 +566,7 @@ export default function WebBuilderPage() {
                     </div>
                 </>
             ) : (
-                // WELCOME SCREEN (Full View)
                 <div className="flex-1 flex items-center justify-center bg-[#050505] relative overflow-hidden">
-                    {/* Background Grid */}
                     <div className="absolute inset-0 opacity-[0.03]"
                         style={{
                             backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
@@ -433,7 +603,6 @@ export default function WebBuilderPage() {
                 </div>
             )}
 
-            {/* Modals */}
             <DashboardModal
                 show={showHistory}
                 setShow={setShowHistory}
@@ -442,19 +611,32 @@ export default function WebBuilderPage() {
                 handleSwitchProject={handleSwitchProject}
                 deleteProject={onProjectDelete}
                 handleNewProject={() => { setShowHistory(false); setShowNewProjectModal(true); }}
+                updateProject={updateProject}
             />
 
             <SettingsModal
                 show={showSettings}
                 setShow={setShowSettings}
                 repoUrl={repoUrl}
-                githubUser={githubUser}
+                githubUser={projectGithubUser || githubUser}
+                projectId={activeProjectId || undefined}
                 repoName={activeProject?.repoName}
+                projectName={activeProject?.name}
                 onDisconnect={handleDisconnectGitHub}
                 handleClearCache={handleClearCache}
                 onOpenGitHubSettings={() => {
                     const baseUrl = window.location.origin;
                     window.location.href = `${baseUrl}/api/auth/github?projectId=${activeProjectId}`;
+                }}
+                onSaveRepoUrl={async (url: string, name?: string) => {
+                    if (activeProjectId) {
+                        await updateProject(activeProjectId, {
+                            repoUrl: url,
+                            repoName: name || url.split('/').slice(-2).join('/'),
+                            githubConnected: true
+                        });
+                        showToast(`🚀 Proyecto vinculado a ${name || 'repositorio'}`, 'success');
+                    }
                 }}
                 handleSync={handlePublish}
                 isSyncing={isPublishing}
@@ -467,6 +649,29 @@ export default function WebBuilderPage() {
                 setShow={setShowNewProjectModal}
                 onCreate={handleCreateProject}
             />
+
+            <PublishModal
+                show={showPublishModal}
+                setShow={setShowPublishModal}
+                projectName={activeProject?.name || "Proyecto"}
+                onPublish={handlePublish}
+                isPublishing={isPublishing}
+            />
         </div>
+    );
+}
+
+export default function WebBuilderPage() {
+    return (
+        <Suspense fallback={
+            <div className="h-screen w-full bg-[#050505] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                    <p className="text-gray-500 text-xs font-medium uppercase tracking-widest animate-pulse">Initializing Builder...</p>
+                </div>
+            </div>
+        }>
+            <WebBuilderContent />
+        </Suspense>
     );
 }

@@ -61,31 +61,30 @@ export const ChatSidebar = ({
     }, [handleGenerate]);
 
     return (
-        <div className="w-[320px] border-r border-[#222] flex flex-col bg-[#09090b] relative z-20">
+        <div className="w-[320px] border-r border-white/5 flex flex-col bg-[#09090b]/90 backdrop-blur-xl relative z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
             {/* Header with Actions */}
-            <div className="h-14 border-b border-[#222] flex items-center justify-between px-3 shrink-0">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-                    Asistente de Diseño
-                </span>
+            <div className="h-14 border-b border-white/[0.03] bg-white/[0.01] flex items-center justify-between px-4 shrink-0">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] flex items-center gap-2">
+                        AI Architect
+                    </span>
+                </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
                     <button
                         onClick={handleNewConversation}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-xl transition-all active:scale-90"
                         title="Nuevo Chat"
                     >
                         <Plus className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => setShowHistoryList(!showHistoryList)}
-                        className={`p-2 rounded-lg transition-colors ${showHistoryList ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        className={`p-2 rounded-xl transition-all active:scale-90 ${showHistoryList ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
                         title="Historial de Chats"
                     >
                         <History className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Ajustes">
-                        <MoreHorizontal className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -109,11 +108,20 @@ export const ChatSidebar = ({
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <MessageSquare className="w-4 h-4 shrink-0 opacity-70" />
-                                    <span className="text-sm truncate">{convo.title}</span>
+                                    <div className="overflow-hidden">
+                                        <span className="text-sm truncate block">
+                                            {convo.title?.trim() || "Chat sin título"}
+                                        </span>
+                                        {convo.updatedAt && (
+                                            <span className="text-[10px] text-gray-600 block">
+                                                {new Date(convo.updatedAt).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); deleteConversation(convo.id); }}
-                                    className="p-1.5 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="p-1.5 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>

@@ -17,6 +17,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid files object' }, { status: 400 });
         }
 
+        console.log("[Preview API] Incoming files:", Object.keys(files));
+        if (files['src/components/ContactSection.tsx']) {
+            console.log("[Preview API] ContactSection content snippet:", files['src/components/ContactSection.tsx'].substring(0, 500));
+        }
+
         // Generate HTML with embedded transpiled code
         const html = generatePreviewHTML(files);
 
@@ -36,55 +41,15 @@ export async function POST(req: NextRequest) {
 }
 
 function generatePreviewHTML(files: Record<string, string>): string {
-    // --- Smart Patching: DISABLED (Conflicts with ai/route.ts self-healing) ---
     let filesToProcess = { ...files };
-    /*
-    try {
-        const entryPath = Object.keys(files).find(k => k === 'src/main.tsx' || k === 'src/index.tsx');
-        const usesRouter = Object.values(files).some(content =>
-            content.includes('react-router-dom') ||
-            content.includes('Routes') ||
-            content.includes('Route')
-        );
 
-        if (entryPath && usesRouter) {
-            const entryContent = files[entryPath];
-            const hasRouter = entryContent.includes('BrowserRouter') ||
-                entryContent.includes('HashRouter') ||
-                entryContent.includes('RouterProvider');
-
-            if (!hasRouter) {
-                console.log('[Preview] Auto-patching entry point with BrowserRouter');
-                let newContent = entryContent.replace('import React from', 'import { BrowserRouter } from "react-router-dom";\nimport React from');
-                if (newContent.includes('<App')) {
-                    newContent = newContent.replace(/<App\s*\/?>/g, '<BrowserRouter><App /></BrowserRouter>');
-                } else if (newContent.includes('<React.StrictMode>')) {
-                    newContent = newContent.replace('<React.StrictMode>', '<React.StrictMode><BrowserRouter>');
-                    newContent = newContent.replace('</React.StrictMode>', '</BrowserRouter></React.StrictMode>');
-                }
-                filesToProcess[entryPath] = newContent;
-            }
-        }
-    } catch (e) {
-        console.warn('[Preview] Auto-patch failed, using original files', e);
-    }
-    */
-
-    // Extract CSS
     const cssFiles = Object.entries(filesToProcess).filter(([path]) => path.endsWith('.css'));
     const cssContent = cssFiles.map(([_, content]) => content).join('\n');
 
-    // Extract and prepare TypeScript/TSX files
     const codeFiles = Object.entries(filesToProcess).filter(([path]) => {
-        // Exclude config files that shouldn't run in browser
-        if (path.includes('vite.config') ||
-            path.includes('eslint.config') ||
-            path.includes('postcss.config') ||
-            path.includes('tailwind.config')) {
-            return false;
-        }
-
-        return path.endsWith('.tsx') || path.endsWith('.ts') || path.endsWith('.jsx') || path.endsWith('.js');
+        if (path.includes('vite.config') || path.includes('eslint.config') || path.includes('postcss.config') || path.includes('tailwind.config')) return false;
+        return path.endsWith('.tsx') || path.endsWith('.ts') || path.endsWith('.jsx') || path.endsWith('.js') ||
+            path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/);
     });
 
     const filesJSON = JSON.stringify(Object.fromEntries(codeFiles));
@@ -97,132 +62,125 @@ function generatePreviewHTML(files: Record<string, string>): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Preview</title>
     
-    <!-- React & ReactDOM (UMD) -->
-    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-    
-    <!-- React Router DOM (UMD) - Bundles history & react-router -->
-    <script crossorigin src="https://unpkg.com/@remix-run/router@1.16.1/dist/router.umd.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-router@6.23.1/dist/umd/react-router.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-router-dom@6.23.1/dist/umd/react-router-dom.production.min.js"></script>
-    
-    <!-- Babel Standalone -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.5/babel.min.js"></script>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"><\/script>
+    <script src="https://unpkg.com/@remix-run/router@1.16.1/dist/router.umd.min.js"><\/script>
+    <script src="https://unpkg.com/react-router@6.23.1/dist/umd/react-router.production.min.js"><\/script>
+    <script src="https://unpkg.com/react-router-dom@6.23.1/dist/umd/react-router-dom.production.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.5/babel.min.js"><\/script>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"><\/script>
+    <script src="https://unpkg.com/framer-motion@11.0.8/dist/framer-motion.js"><\/script>
+    <script src="https://unpkg.com/zustand@4.5.2/dist/umd/index.js"><\/script>
+    <script src="https://unpkg.com/@tanstack/react-query@5.28.4/build/umd/index.production.js"><\/script>
 
-    <!-- Lucide Icons - Base package (exposes window.lucide) -->
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script>
-        // Create React component wrappers for lucide icons
-        (function() {
-            if (!window.lucide || !window.React) {
-                console.error('[Preview] Lucide or React not loaded');
-                window.lucideReact = {};
-                return;
-            }
-            
-            window.lucideReact = {};
-            
-            // Get all icon names from lucide.icons
-            const iconNames = Object.keys(window.lucide.icons || {});
-            
-            // Create a React component for each icon
-            iconNames.forEach(function(iconName) {
-                window.lucideReact[iconName] = function(props) {
-                    props = props || {};
-                    
-                    // Get the icon data for this icon
-                    const iconData = window.lucide.icons[iconName];
-                    if (!iconData || !Array.isArray(iconData)) {
-                        console.warn('[Preview] Icon data not found or invalid for:', iconName);
-                        return window.React.createElement('span', { style: { color: 'red' } }, '?');
-                    }
-                    
-                    // Lucide icon data format: [['tag', { attrs }], ['tag', { attrs }], ...]
-                    // Create child elements from the icon data
-                    const children = iconData.map(function(item, index) {
-                        if (!Array.isArray(item) || item.length < 2) {
-                            return null;
-                        }
-                        
-                        const tagName = item[0];
-                        const attributes = item[1] || {};
-                        
-                        // Create the element with its attributes
-                        return window.React.createElement(tagName, {
-                            key: index,
-                            ...attributes
-                        });
-                    }).filter(Boolean);
-                    
-                    // Create SVG element with the icon's children
-                    return window.React.createElement(
-                        'svg',
-                        {
-                            xmlns: 'http://www.w3.org/2000/svg',
-                            width: props.width || props.size || 24,
-                            height: props.height || props.size || 24,
-                            viewBox: '0 0 24 24',
-                            fill: 'none',
-                            stroke: props.color || 'currentColor',
-                            strokeWidth: props.strokeWidth || 2,
-                            strokeLinecap: 'round',
-                            strokeLinejoin: 'round',
-                            className: props.className || '',
-                            style: props.style
-                        },
-                        children
-                    );
-                };
-            });
-            
-            console.log('[Preview] Created ' + iconNames.length + ' lucide-react icon components');
-        })();
-    </script>
-    
-    <!-- Custom Styles -->
+    <base href="/">
     <style>
         ${cssContent}
-        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; }
-        #root { min-height: 100vh; }
+        html, body { height: 100%; margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; }
+        #root { min-height: 100%; width: 100%; display: flex; flex-direction: column; }
         .status-container {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100vh; color: #888; gap: 1rem;
+            height: 100vh; color: #888; gap: 1rem; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 5000;
+            backdrop-blur: sm;
         }
         .spinner {
-            width: 24px; height: 24px; border: 2px solid #333; border-top-color: #fff;
+            width: 32px; height: 32px; border: 3px solid #222; border-top-color: #555;
             border-radius: 50%; animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .error-box {
             padding: 24px; background: #1a0505; border: 1px solid #450a0a;
             color: #fca5a5; border-radius: 12px; max-width: 90%; font-family: monospace;
-            white-space: pre-wrap; margin: 20px;
+            white-space: pre-wrap; margin: 20px; z-index: 10000; position: relative;
         }
     </style>
+    <script>
+        console.log("[Preview] Starting asset resolver...");
+        // Virtual Asset Resolver
+        (function() {
+            const files = ${filesJSON};
+            const virtualAssets = {};
+            
+            // Collect images from the virtual filesystem
+            Object.entries(files).forEach(([path, content]) => {
+                if (path.match(/\\.(png|jpg|jpeg|gif|svg|webp)$|data:image/)) {
+                    // If it's already a data URI, use it. If not, we assume it's base64 or raw
+                    const fullPath = path.startsWith('/') ? path : '/' + path;
+                    const publicPath = path.startsWith('public/') ? path.replace('public/', '/') : fullPath;
+                    
+                    if (content.startsWith('data:')) {
+                        virtualAssets[publicPath] = content;
+                    } else if (content.length > 100) { // Likely base64 if it's long and not code
+                        const ext = path.split('.').pop();
+                        virtualAssets[publicPath] = \`data:image/\${ext === 'jpg' ? 'jpeg' : ext};base64,\${content}\`;
+                    }
+                }
+            });
+
+            const originalSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+            if (originalSrc) {
+                Object.defineProperty(HTMLImageElement.prototype, 'src', {
+                    set: function(val) {
+                        try {
+                            const url = new URL(val, window.location.href);
+                            const path = url.pathname;
+                            if (virtualAssets[path]) {
+                                return originalSrc.set.call(this, virtualAssets[path]);
+                            }
+                        } catch(e) {}
+                        return originalSrc.set.call(this, val);
+                    },
+                    get: function() {
+                        return originalSrc.get.call(this);
+                    }
+                });
+            }
+            
+            // Also patch CSS background-image
+            const originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
+            CSSStyleDeclaration.prototype.setProperty = function(prop, val, priority) {
+                if (prop === 'background-image' || prop === 'background') {
+                    Object.entries(virtualAssets).forEach(([path, data]) => {
+                        if (val.includes(path)) {
+                            val = val.replace(path, data);
+                        }
+                    });
+                }
+                return originalSetProperty.call(this, prop, val, priority);
+            };
+        })();
+    <\/script>
 </head>
 <body>
     <div id="root">
-        <div class="status-container">
+        <div class="status-container" id="loading-screen">
             <div class="spinner"></div>
-            <div id="status-text">Loading libraries...</div>
+            <div id="status-text">Inyectando motor de visualización...</div>
         </div>
     </div>
     
     <script>
-        // Global Error Handler
+        console.log("[Preview] Bootstrap started");
+        
         window.onerror = function(msg, url, line, col, error) {
-            document.getElementById('root').innerHTML = \`
-                <div class="error-box">
-                    <h3 style="margin-top:0">Runtime Error</h3>
-                    <div>\${msg}</div>
-                    <div style="font-size:12px; opacity:0.7; margin-top:8px">
-                        \${url ? url.split('/').pop() : 'script'}:\${line}:\${col}
+            console.error("[Preview] Global Error:", msg, error);
+            const root = document.getElementById('root');
+            if (root) {
+                root.innerHTML = \`
+                    <div class="error-box">
+                        <h3 style="margin:0 0 10px 0; color: #f87171;">Error de Ejecución</h3>
+                        <div style="font-weight:bold; margin-bottom: 5px;">\${msg}</div>
+                        <div style="font-size:11px; color:#999;">
+                            Origen: \${url ? url.split('/').pop() : 'script'}:\${line}:\${col}
+                        </div>
+                        \${error && error.stack ? \`<pre style="font-size:10px; margin-top:10px; opacity:0.6; overflow:auto; max-height:200px;">\${error.stack}</pre>\` : ''}
+                        <div style="margin-top:10px; font-size:10px; border-top: 1px solid #333; padding-top: 5px;">
+                            Diagnostic: ReactDOM=\${typeof window.ReactDOM} React=\${typeof window.React}
+                        </div>
                     </div>
-                </div>
-            \`;
+                \`;
+            }
             return false;
         };
 
@@ -232,14 +190,14 @@ function generatePreviewHTML(files: Record<string, string>): string {
             const loadedModules = {};
             
             function updateStatus(msg) {
+                console.log("[Preview Status]", msg);
                 const el = document.getElementById('status-text');
                 if (el) el.innerText = msg;
             }
 
-            // --- Helper: Path Join & Normalize ---
             function joinPath(base, relative) {
                 const parts = base.split('/');
-                parts.pop(); // Remove filename
+                parts.pop(); 
                 const relativeParts = relative.split('/');
                 for (const part of relativeParts) {
                     if (part === '.') continue;
@@ -249,14 +207,12 @@ function generatePreviewHTML(files: Record<string, string>): string {
                 return parts.join('/');
             }
 
-            // --- Robust Module Resolution ---
             function resolveModulePath(requestPath, currentFilePath) {
                 let path = requestPath;
                 if (path.startsWith('@/')) path = path.replace('@/', 'src/');
                 else if (path.startsWith('./') || path.startsWith('../')) path = joinPath(currentFilePath, path);
                 
                 if (files[path]) return path;
-                
                 const extensions = ['.tsx', '.ts', '.jsx', '.js'];
                 for (const ext of extensions) { if (files[path + ext]) return path + ext; }
                 for (const ext of extensions) { if (files[path + '/index' + ext]) return path + '/index' + ext; }
@@ -269,253 +225,288 @@ function generatePreviewHTML(files: Record<string, string>): string {
                 return null;
             }
 
-            // --- Fallback Component for Missing Imports ---
-            const FallbackComponent = ({ children, ...props }) => {
-                console.warn('Rendering FallbackComponent due to missing module/export');
-                return window.React.createElement(
-                    'div', 
-                    { style: { border: '1px dashed red', padding: '4px', display: 'inline-block', color: 'red' }, title: 'Missing Component' }, 
-                    '?' + (children || '')
-                );
+            const FallbackComponent = (props = {}) => {
+                const name = props?.name || 'Component';
+                return React.createElement('div', { 
+                    style: { border: '1px dashed #444', padding: '10px', margin: '5px', borderRadius: '8px', background: '#111', color: '#666', fontSize: '12px' } 
+                }, "[Elemento Faltante: " + name + "]");
             };
 
             const createRequire = (currentFilePath) => {
                 return function require(path) {
-                    // Global Dependencies
                     if (path === 'react') return window.React;
                     if (path === 'react-dom' || path === 'react-dom/client') return window.ReactDOM;
-                    if (path === 'react-router-dom') return window.ReactRouterDOM;
-                    if (path === 'react-router') return window.ReactRouterDOM;
-                    
-                    // History module - provide complete mock
-                    if (path === 'history') {
-                        return {
-                            createBrowserHistory: function() {
-                                return {
-                                    push: function() {},
-                                    replace: function() {},
-                                    go: function() {},
-                                    goBack: function() {},
-                                    goForward: function() {},
-                                    listen: function() { return function() {}; },
-                                    location: { pathname: '/', search: '', hash: '', state: null }
-                                };
-                            },
-                            createHashHistory: function() {
-                                return {
-                                    push: function() {},
-                                    replace: function() {},
-                                    go: function() {},
-                                    goBack: function() {},
-                                    goForward: function() {},
-                                    listen: function() { return function() {}; },
-                                    location: { pathname: '/', search: '', hash: '', state: null }
-                                };
-                            }
-                        };
-                    }
-                    
-                    // Lucide React - Use CDN library if available, otherwise fallback
-                    if (path === 'lucide-react') {
-                        // Check if CDN loaded successfully
-                        if (window.lucideReact && Object.keys(window.lucideReact).length > 0) {
-                            console.log('[Preview] Using lucide-react from CDN');
-                            return window.lucideReact;
-                        }
-                        if (window.lucide && Object.keys(window.lucide).length > 0) {
-                            console.log('[Preview] Using lucide from CDN');
-                            return window.lucide;
-                        }
-                        
-                        console.warn('[Preview] Lucide library not available, using FallbackComponent for icons');
-                        
-                        return new Proxy({}, {
-                            get: function(target, prop) {
-                                if (prop === '__esModule') return true;
-                                if (prop === 'default') return FallbackComponent;
-                                // Return FallbackComponent for ANY icon request
-                                return FallbackComponent;
-                            }
-                        });
-                    }
-                    
-                    // Framer Motion
+                    if (path.includes('react-router') && window.ReactRouterDOM) return window.ReactRouterDOM;
                     if (path === 'framer-motion') {
-                        return {
-                            motion: new Proxy({}, {
-                                get: function() {
-                                    return function(props) {
-                                        return window.React.createElement('div', props);
-                                    };
-                                }
-                            }),
-                            AnimatePresence: function(props) {
-                                return props.children;
-                            }
-                        };
+                        const motion = window.Motion || window.framerMotion;
+                        if (motion) return { ...motion, default: motion.motion || motion };
                     }
+                    if (path === 'zustand' && window.zustand) return window.zustand;
+                    if (path === '@tanstack/react-query' && window.ReactQuery) return window.ReactQuery;
                     
-                    // CSS utilities & Variants
-                    if (path === 'clsx' || path === 'classnames' || path === 'tailwind-merge' || path === 'class-variance-authority') {
-                        const cnFn = function() {
-                            return Array.from(arguments).flat().filter(Boolean).join(' ');
-                        };
-                        
-                        if (path === 'class-variance-authority') {
-                            return {
-                                cva: function(base, config) {
-                                    return function(props) {
-                                        let classes = base || '';
-                                        if (config && config.variants && props) {
-                                            Object.keys(config.variants).forEach(key => {
-                                                const val = props[key] || config.defaultVariants?.[key];
-                                                if (val && config.variants[key][val]) {
-                                                    classes += ' ' + config.variants[key][val];
-                                                }
-                                            });
-                                        }
-                                        if (props && props.className) classes += ' ' + props.className;
-                                        return classes;
-                                    };
-                                },
-                                cx: cnFn
-                            };
+                    if (path.includes('components/ui/')) {
+                        const resolvedPath = resolveModulePath(path, currentFilePath);
+                        if (!resolvedPath || !files[resolvedPath]) {
+                            const name = (path.split('/').pop() || 'Component').replace('.tsx', '').replace('.jsx', '');
+                            let Comp = FallbackComponent;
+                            
+                            if (name.toLowerCase() === 'label') Comp = (p = {}) => React.createElement('label', { ...p, style: { fontWeight: 'bold', display: 'block', ...p?.style } });
+                            if (name.toLowerCase() === 'input') Comp = (p = {}) => React.createElement('input', { ...p, style: { width: '100%', padding: '8px', border: '1px solid #333', borderRadius: '6px', background: '#111', color: '#fff', ...p?.style } });
+                            if (name.toLowerCase() === 'button') Comp = (p = {}) => React.createElement('button', { ...p, style: { padding: '8px 16px', borderRadius: '6px', background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', ...p?.style } });
+                            if (name.toLowerCase() === 'textarea') Comp = (p = {}) => React.createElement('textarea', { ...p, style: { width: '100%', padding: '8px', border: '1px solid #333', borderRadius: '6px', background: '#111', color: '#fff', ...p?.style } });
+                            if (name.toLowerCase() === 'card') Comp = (p = {}) => React.createElement('div', { ...p, style: { border: '1px solid #222', borderRadius: '12px', background: '#0a0a0a', padding: '16px', ...p?.style } });
+                            
+                            // Return a Proxy to handle ANY named export (Button, Input, etc)
+                            return new Proxy({ default: Comp, __esModule: true }, {
+                                get: (target, prop) => {
+                                    if (prop === 'default' || prop === '__esModule') return target[prop];
+                                    if (typeof prop === 'string' && prop.toLowerCase().includes('card')) {
+                                        return (p = {}) => React.createElement('div', { ...p, 'data-component': prop });
+                                    }
+                                    return Comp;
+                                }
+                            });
                         }
-
-                        return {
-                            default: cnFn,
-                            clsx: cnFn,
-                            twMerge: cnFn,
-                            cn: cnFn
-                        };
                     }
 
-                    // Try to resolve local modules
+                    if (path === 'lucide-react') {
+                        if (window.lucide && window.lucide.icons) {
+                           return new Proxy({}, {
+                               get: (target, name) => {
+                                   if (name === '__esModule') return true;
+                                   if (typeof name === 'symbol') return target[name];
+                                   const iconName = name.toString().replace(/Icon$/, '');
+                                   const iconData = window.lucide.icons[iconName] || window.lucide.icons[iconName.toLowerCase()];
+                                   if (!iconData) return (p = {}) => React.createElement('span', null, 'ℹ️');
+                                   return (props = {}) => {
+                                       try {
+                                           const children = iconData.map((item, i) => React.createElement(item[0], { key: i, ...item[1] }));
+                                           return React.createElement('svg', { 
+                                               width: props?.size || 24, height: props?.size || 24, viewBox: '0 0 24 24', 
+                                               fill: 'none', stroke: 'currentColor', strokeWidth: 2, ...props 
+                                           }, children);
+                                       } catch (e) { return React.createElement('span', null, '⚠️'); }
+                                   };
+                               }
+                           });
+                        }
+                    }
+
+                    if (path === 'clsx' || path === 'tailwind-merge' || path === 'class-variance-authority' || path.includes('utils')) {
+                        const cn = function() { return Array.from(arguments).flat().filter(Boolean).join(' '); };
+                        const cvaStub = () => (p = {}) => p?.className || '';
+                        return { default: cn, clsx: cn, twMerge: cn, cn: cn, cva: cvaStub, cx: cn };
+                    }
+
                     const resolvedPath = resolveModulePath(path, currentFilePath);
                     if (resolvedPath) {
                         if (loadedModules[resolvedPath]) return loadedModules[resolvedPath];
                         if (modules[resolvedPath]) {
-                             const moduleExports = {};
-                             const module = { exports: moduleExports };
-                             loadedModules[resolvedPath] = moduleExports;
+                            const moduleExports = {};
+                            const module = { exports: moduleExports };
+                            loadedModules[resolvedPath] = module.exports;
                              try {
-                                 modules[resolvedPath](createRequire(resolvedPath), module, moduleExports);
+                                 modules[resolvedPath](createRequire(resolvedPath), module, module.exports);
+                                 
+                                 // Smart Export Fixup: if AI forgot 'export default' but has named exports
+                                 if (module.exports && !module.exports.default) {
+                                     const keys = Object.keys(module.exports).filter(k => k !== '__esModule');
+                                     if (keys.length === 1) {
+                                         module.exports.default = module.exports[keys[0]];
+                                     } else if (keys.length > 1) {
+                                         const fileName = resolvedPath.split('/').pop().split('.')[0].toLowerCase();
+                                         const bestMatch = keys.find(k => k.toLowerCase() === fileName) || keys[0];
+                                         module.exports.default = module.exports[bestMatch];
+                                     }
+                                 }
+                                 
                                  loadedModules[resolvedPath] = module.exports;
                                  return module.exports;
                              } catch (e) {
-                                 console.error('[Preview] Error executing module ' + resolvedPath, e);
-                                 // Return Proxy with FallbackComponent on execution error
-                                 return new Proxy({}, {
-                                     get: function(target, prop) {
-                                         if (prop === '__esModule') return true;
-                                         if (prop === 'default') return FallbackComponent;
-                                         return FallbackComponent;
-                                     }
-                                 });
+                                 console.error("Exec error in " + resolvedPath, e);
+                                 return { default: FallbackComponent };
                              }
-                         }
-                    }
-                    
-                    console.warn('[Preview] Module not resolved: ' + path + ' (from ' + currentFilePath + ')');
-                    
-                    // Return Proxy that provides FallbackComponent for any property access
-                    return new Proxy({}, {
-                        get: function(target, prop) {
-                            if (prop === '__esModule') return true;
-                            if (prop === 'default') return FallbackComponent;
-                            // Return FallbackComponent for any property (like icon names)
-                            return FallbackComponent;
                         }
-                    });
+                    }
+
+                    // Smart Recursive Proxy: for libraries like framer-motion, zustand, etc.
+                    // This prevents "undefined" errors by returning a proxy that behaves like a component or an object.
+                    const createSmartProxy = (basePath) => {
+                        const MockComponent = (props = {}) => {
+                            return React.createElement('div', { ...props, 'data-mock': basePath });
+                        };
+                        
+                        // React Component identification
+                        const REACT_ELEMENT_TYPE = typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.element') : 0xeac7;
+                        
+                        return new Proxy(MockComponent, { 
+                            get: (target, prop) => {
+                                if (prop === '__esModule') return true;
+                                if (prop === 'default') return target;
+                                if (prop === '$$typeof' || prop === 'render' || prop === 'prototype') return undefined;
+                                if (typeof prop === 'symbol') {
+                                    if (prop === Symbol.toPrimitive) return (hint) => \`[Mock:\${basePath}]\`;
+                                    return target[prop];
+                                }
+                                if (prop === 'displayName') return basePath.split('.').pop();
+                                if (prop === 'toString' || prop === 'valueOf') return () => \`[Mock:\${basePath}]\`;
+                                
+                                // Prevent recursive proxy for internal DOM / React properties
+                                if (typeof prop === 'string' && (prop.startsWith('__') || prop === 'focus' || prop === 'blur')) return undefined;
+                                
+                                return createSmartProxy(basePath + '.' + String(prop));
+                            }
+                        });
+                    };
+                    
+                    return createSmartProxy(path);
                 };
             };
-            
-            function loadModules() {
-                updateStatus('Transpiling components...');
-                const root = document.getElementById('root');
-                
+
+            function startApp() {
                 try {
-                    // 1. Transpile
-                    Object.entries(files).forEach(([path, content]) => {
-                        const result = Babel.transform(content, {
-                            presets: [
-                                ['react', { runtime: 'classic' }],
-                                'typescript',
-                                ['env', { modules: 'commonjs' }]
-                            ],
-                            filename: path
-                        });
-                        modules[path] = new Function('require', 'module', 'exports', result.code);
-                    });
+                    updateStatus("Compilando código IA...");
+
+                    // Inyectar detector de clicks para sincronización bidireccional
+                    document.addEventListener('click', (e) => {
+                        const target = e.target;
+                        if (target) {
+                            const componentPath = target.getAttribute('data-component-path');
+                            const componentLoc = target.getAttribute('data-component-loc');
+                            
+                            // Seguridad para postMessage: convertir objetos no clonables a strings
+                            // Especialmente importante para SVGs donde className es un SVGAnimatedString
+                            const getCleanValue = (val) => {
+                                if (val && typeof val === 'object' && 'baseVal' in val) {
+                                    return val.baseVal; // Manejo de SVGAnimatedString
+                                }
+                                return String(val || '');
+                            };
+
+                            try {
+                                window.parent.postMessage({ 
+                                    type: 'inspect-element',
+                                    tagName: getCleanValue(target.tagName),
+                                    className: getCleanValue(target.className),
+                                    textContext: (target.textContent || '').substring(0, 20),
+                                    path: componentPath,
+                                    loc: componentLoc
+                                }, '*');
+                            } catch (err) {
+                                console.warn("[Preview] Failed to postMessage click event", err);
+                            }
+                        }
+                    }, true);
+
+                    // Track internal navigation (Robust Sync)
+                    const syncNavigation = () => {
+                        const hashPath = window.location.hash.replace(/^#/, '') || '/';
+                        const pathName = window.location.pathname.replace('/api/web-builder/preview', '') || '/';
+                        
+                        // Priority to hash if it exists and looks like a route
+                        const finalPath = (hashPath && hashPath !== '/') ? hashPath : pathName;
+                        
+                        console.log("[Preview] Syncing navigation to parent:", finalPath);
+                        window.parent.postMessage({ type: 'navigation', path: finalPath }, '*');
+                    };
+
+                    window.addEventListener('hashchange', syncNavigation);
+                    window.addEventListener('popstate', syncNavigation);
                     
-                    // 2. Pre-load
-                    updateStatus('Linking modules...');
-                    Object.keys(modules).forEach(path => {
-                        if (!loadedModules[path]) {
-                            const moduleExports = {};
-                            const module = { exports: moduleExports };
-                            loadedModules[path] = moduleExports;
-                            modules[path](createRequire(path), module, moduleExports);
-                            loadedModules[path] = module.exports;
+                    // Intercept clicks for internal routing that might not fire events immediately
+                    document.addEventListener('click', (e) => {
+                        const link = e.target.closest('a');
+                        if (link && link.href && link.href.startsWith(window.location.origin)) {
+                            // Delay slightly to allow router to update
+                            setTimeout(syncNavigation, 10);
+                        }
+                    }, true);
+
+                    syncNavigation(); // Initial sync
+
+                    // Listen for external navigation commands (from Parent Address Bar/Editor)
+                    window.addEventListener('message', (e) => {
+                        if (e.data?.type === 'navigate-to') {
+                            const targetPath = e.data.path;
+                            const currentHash = window.location.hash.replace(/^#/, '') || '/';
+                            console.log("[Preview] Received navigation command:", targetPath, "current hash:", currentHash);
+                            
+                            // Only update if different to avoid loops
+                            if (targetPath !== currentHash && targetPath !== ('/' + currentHash)) {
+                                console.log("[Preview] Updating hash to:", targetPath);
+                                window.location.hash = targetPath.startsWith('/') ? targetPath : '/' + targetPath;
+                            }
                         }
                     });
-                    
-                    // 3. Render
-                    updateStatus('Starting app...');
+
+                    // Plugin de Babel para etiquetar componentes (Portado de Dyad)
+                    Babel.registerPlugin('componentTagger', ({ types: t }) => ({
+                        visitor: {
+                            JSXOpeningElement(path, state) {
+                                const name = path.node.name;
+                                const loc = path.node.loc?.start;
+                                if (loc) {
+                                    const fileName = state.file.opts.filename || 'unknown';
+                                    path.node.attributes.push(
+                                        t.jsxAttribute(t.jsxIdentifier('data-component-path'), t.stringLiteral(fileName)),
+                                        t.jsxAttribute(t.jsxIdentifier('data-component-loc'), t.stringLiteral(loc.line + ':' + loc.column))
+                                    );
+                                }
+                            }
+                        }
+                    }));
+
+                    Object.entries(files).forEach(([path, content]) => {
+                        try {
+                            const result = Babel.transform(content, {
+                                presets: [['react', { runtime: 'classic' }], 'typescript', ['env', { modules: 'commonjs' }]],
+                                plugins: ['componentTagger'],
+                                filename: path
+                            });
+                            modules[path] = new Function('require', 'module', 'exports', result.code);
+                        } catch (e) { console.error("Babel error in " + path, e); }
+                    });
+
+                    updateStatus("Ejecutando componentes...");
                     const entryPath = Object.keys(files).find(k => k === 'src/main.tsx' || k === 'src/index.tsx');
-                    
                     if (entryPath) {
-                        return; // main.tsx execution (in step 2) should have mounted the app
-                    }
-                    
-                    // Fallback mount
-                    const appPath = Object.keys(files).find(k => k.endsWith('App.tsx'));
-                    if (appPath) {
-                         const App = loadedModules[appPath].default || loadedModules[appPath];
-                         const reactRoot = ReactDOM.createRoot(root);
-                         
-                         const usesRouter = Object.values(files).some(c => c.includes('react-router-dom'));
-                         if (usesRouter && window.ReactRouterDOM) {
-                             const { BrowserRouter } = window.ReactRouterDOM;
-                             reactRoot.render(React.createElement(BrowserRouter, null, React.createElement(App)));
-                         } else {
-                             reactRoot.render(React.createElement(App));
-                         }
+                        console.log("[Preview] Running entry:", entryPath);
+                        createRequire(entryPath)(entryPath);
                     } else {
-                        throw new Error('No entry point found (src/main.tsx or App.tsx)');
+                        const appPath = Object.keys(files).find(k => k.endsWith('App.tsx'));
+                        if (appPath) {
+                            console.log("[Preview] Auto-booting App from:", appPath);
+                            const AppMod = createRequire(appPath)(appPath);
+                            const App = AppMod.default || AppMod;
+                            
+                            if (typeof App !== 'function' && !(App && App.$$typeof)) {
+                                throw new Error("El componente 'App' no es una función válida. Revisa los exports.");
+                            }
+
+                            ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+                        }
                     }
-                    
-                } catch (error) {
-                    console.error('Preview error:', error);
-                    root.innerHTML = \`<div class="error-box"><h3>Preview Error</h3><div>\${error.message}</div></div>\`;
+                    const loader = document.getElementById('loading-screen');
+                    if (loader) loader.style.display = 'none';
+                } catch (e) {
+                    console.error("[Preview] Fatal Boot Error", e);
+                    window.onerror(e.message, "boot", 0, 0, e);
                 }
             }
-            
-            // Wait for libs
-            let checkCount = 0;
-            const checkInterval = setInterval(() => {
-                checkCount++;
-                if (window.React && window.ReactDOM && window.Babel && window.ReactRouterDOM) {
-                    clearInterval(checkInterval);
-                    loadModules();
-                } else if (checkCount > 100) {
-                    clearInterval(checkInterval);
-                    const missing = [];
-                    if (!window.React) missing.push('React');
-                    if (!window.ReactDOM) missing.push('ReactDOM');
-                    if (!window.Babel) missing.push('Babel');
-                    if (!window.ReactRouterDOM) missing.push('ReactRouterDOM');
-                    
-                    document.getElementById('root').innerHTML = \`
-                        <div class="error-box">
-                            <h3>Connection Timeout</h3>
-                            <div>Failed to load libraries: \${missing.join(', ')}</div>
-                            <div style="font-size:12px;margin-top:10px">Check internet connection.</div>
-                        </div>\`;
+
+            let checks = 0;
+            const check = setInterval(() => {
+                checks++;
+                if (window.React && window.ReactDOM && window.Babel && window.lucide && (window.Motion || window.framerMotion)) {
+                    clearInterval(check);
+                    startApp();
+                } else if (checks > 100) {
+                    clearInterval(check);
+                    updateStatus("Error: No se pudieron cargar las librerías necesarias. Revisa tu conexión.");
                 }
             }, 100);
         })();
-    </script>
+    <\/script>
 </body>
 </html>
     `.trim();

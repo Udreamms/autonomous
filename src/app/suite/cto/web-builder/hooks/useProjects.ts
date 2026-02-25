@@ -29,12 +29,24 @@ export const useProjects = (initialFiles: Record<string, string>) => {
 
     // Initial Load & Real-time Sync
     useEffect(() => {
-        const q = query(collection(db, "web-projects"), orderBy("lastModified", "desc"));
+        const q = collection(db, "web-projects");
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const projectsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as WebProject));
+            const projectsData = snapshot.docs
+                .map(d => ({
+                    id: d.id,
+                    name: "Untitled Project",
+                    lastModified: Date.now(),
+                    ...d.data()
+                } as WebProject))
+                // Filter out ghost docs: must have a real name field in Firestore
+                .filter(p => {
+                    const raw = snapshot.docs.find(d => d.id === p.id)?.data();
+                    return raw && raw.name && raw.name.trim() !== '';
+                });
+
+            // Sort in memory to be resilient to missing fields
+            projectsData.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+
             setProjects(projectsData);
         });
 
@@ -90,10 +102,43 @@ export const useProjects = (initialFiles: Record<string, string>) => {
 
     const deleteProject = useCallback(async (id: string) => {
         try {
-            await deleteDoc(doc(db, "web-projects", id));
-            if (activeProjectId === id) setActiveProjectId(null);
-        } catch (e) {
-            console.error("Failed to delete project", e);
+            const batch = writeBatch(db);
+
+            // 1. Delete all files
+            const filesSnap = await getDocs(collection(db, "web-projects", id, "files"));
+            filesSnap.docs.forEach(d => batch.delete(d.ref));
+
+            // 2. Delete all conversations AND their nested messages
+            const convsSnap = await getDocs(collection(db, "web-projects", id, "conversations"));
+            for (const convoDoc of convsSnap.docs) {
+                // Delete every message inside this conversation
+                const msgsSnap = await getDocs(
+                    collection(db, "web-projects", id, "conversations", convoDoc.id, "messages")
+                );
+                msgsSnap.docs.forEach(m => batch.delete(m.ref));
+                // Delete the conversation document itself
+                batch.delete(convoDoc.ref);
+            }
+
+            // 3. Delete the project document
+            batch.delete(doc(db, "web-projects", id));
+
+            await batch.commit();
+
+            // Clear localStorage if this was the active project
+            if (activeProjectId === id) {
+                setActiveProjectId(null);
+                localStorage.removeItem('web-builder-active-project');
+            }
+            console.log(`[deleteProject] Project ${id} and all subcollections deleted successfully.`);
+        } catch (e: any) {
+            console.error("Failed to delete project:", e);
+            // Fallback to API
+            try {
+                await fetch(`/api/web-builder/projects?projectId=${id}`, { method: 'DELETE' });
+            } catch (apiErr) {
+                console.error("API fallback delete also failed:", apiErr);
+            }
         }
     }, [activeProjectId]);
 

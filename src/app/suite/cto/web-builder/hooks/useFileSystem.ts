@@ -46,17 +46,28 @@ export const useFileSystem = (activeProjectId: string | null, updateProjectLastM
 
     const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'error' | 'pending'>('synced');
     const [hasChanges, setHasChanges] = useState(false);
+    const [loading, setLoading] = useState(true);
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Track if we are viewing the correct project's files
     const loadedProjectId = useRef<string | null>(null);
+    const currentProjectIdRef = useRef<string | null>(null);
 
     // Fetch Files when project changes
     useEffect(() => {
         if (!activeProjectId) {
             setFiles(INITIAL_FILES);
+            setLoading(false);
             loadedProjectId.current = null;
             return;
+        }
+
+        // Project Isolation: Clear files immediately when switching to avoid "leaking" previous project code
+        if (activeProjectId !== currentProjectIdRef.current) {
+            console.log("[useFileSystem] Project changed, resetting files state for isolation:", activeProjectId);
+            setFiles(INITIAL_FILES);
+            setLoading(true);
+            currentProjectIdRef.current = activeProjectId;
         }
 
         if (loadedProjectId.current === activeProjectId) return;
@@ -97,8 +108,16 @@ export const useFileSystem = (activeProjectId: string | null, updateProjectLastM
         }
     };
 
-    const triggerSync = useCallback(async (options?: { autoCreate?: boolean, projectName?: string, dryRun?: boolean, repoUrl?: string }) => {
-        if (!activeProjectId) return null;
+    const triggerSync = useCallback(async (options?: { projectId?: string, autoCreate?: boolean, projectName?: string, dryRun?: boolean, repoUrl?: string }) => {
+        const targetProjectId = options?.projectId || activeProjectId;
+        if (!targetProjectId) return null;
+
+        // Isolation Check: Ensure we don't sync if the files in memory don't belong to the target project
+        if (loadedProjectId.current && targetProjectId !== loadedProjectId.current) {
+            console.warn("[FileSystem] Sync blocked: Memory project ID mismatch. Files are for", loadedProjectId.current, "target is", targetProjectId);
+            return { error: 'Project mismatch. Please wait for files to load.' };
+        }
+
         if (!options?.dryRun) setSyncStatus('syncing');
 
         try {
@@ -112,7 +131,7 @@ export const useFileSystem = (activeProjectId: string | null, updateProjectLastM
                     'x-dry-run': options?.dryRun ? 'true' : 'false'
                 },
                 body: JSON.stringify({
-                    projectId: activeProjectId,
+                    projectId: targetProjectId,
                     action: 'sync',
                     files: currentFiles,
                     repoUrl: options?.repoUrl,
@@ -275,11 +294,9 @@ export const useFileSystem = (activeProjectId: string | null, updateProjectLastM
     }, [activeProjectId, files, future]);
 
     const deleteProjectFiles = useCallback(async (id: string) => {
-        if (id === activeProjectId) {
-            setFiles(INITIAL_FILES);
-            loadedProjectId.current = null;
-        }
-    }, [activeProjectId]);
+        // Redundant: Server-side API handles absolute deletion. 
+        // Local state is cleared if active project is deleted via switch.
+    }, []);
 
     // Safety: Ensure activeFile always exists
     useEffect(() => {

@@ -27,7 +27,7 @@ export const Toast = ({ message, type, onClose }: ToastProps) => {
     const Icon = icons[type];
 
     return (
-        <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${colors[type]} shadow-lg animate-in slide-in-from-top-2 fade-in duration-300`}>
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${colors[type]} shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-300`}>
             <Icon className="w-5 h-5 shrink-0" />
             <p className="text-sm font-medium flex-1">{message}</p>
             <button
@@ -47,7 +47,7 @@ interface ToastContainerProps {
 
 export const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
     return (
-        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-md">
+        <div className="fixed bottom-6 right-4 z-[100] flex flex-col gap-2 max-w-md">
             {toasts.map(toast => (
                 <Toast
                     key={toast.id}

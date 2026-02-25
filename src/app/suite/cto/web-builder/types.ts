@@ -6,6 +6,7 @@ export interface ChatStep {
     id: string;
     label: string;
     status: 'pending' | 'current' | 'done' | 'error';
+    type?: 'laboral' | 'proximo';
 }
 
 export interface ChatMessage {
@@ -22,6 +23,7 @@ export interface ChatMessage {
     checklist?: { label: string; completed: boolean }[];
     steps?: ChatStep[];
     images?: string[];
+    thinkingTime?: number;
 }
 
 export interface PreviewAreaProps {
@@ -43,6 +45,12 @@ export interface WebProject {
     lastDeployed?: number;
     lastSynced?: number;
     githubConnected?: boolean;
+    githubOwner?: string;      // GitHub login (e.g. 'elizmey', 'skylertitu') — per project
+    githubAvatar?: string;     // GitHub avatar_url — per project
+    customUrl?: string;
+    customDomain?: string;
+    description?: string;
+    visibility?: 'public' | 'private';
 }
 
 export interface GitHubUser {

@@ -158,11 +158,20 @@ export const useChatAI = (
         if (!convoId) {
             const convoCol = collection(db, "web-projects", activeProjectId, "conversations");
             const newConvo = await addDoc(convoCol, {
-                title: userMsg.substring(0, 30) || "Nueva conversación",
+                title: userMsg.substring(0, 40).trim() || "Nueva conversación",
                 updatedAt: Date.now()
             });
             convoId = newConvo.id;
             setActiveConversationId(convoId);
+        } else {
+            // Auto-update title if the conversation still has a placeholder name
+            const activeConvo = conversations.find(c => c.id === convoId);
+            const placeholderTitles = ["Nuevo Chat", "Nueva conversación", ""];
+            if (activeConvo && placeholderTitles.includes(activeConvo.title?.trim() || "")) {
+                const convoRef = doc(db, "web-projects", activeProjectId, "conversations", convoId);
+                const autoTitle = userMsg.substring(0, 40).trim() || "Chat sin título";
+                await setDoc(convoRef, { title: autoTitle }, { merge: true });
+            }
         }
 
         // Process images to base64 for API
@@ -184,6 +193,22 @@ export const useChatAI = (
         })) : [];
 
         const validImages = processedImages.filter(Boolean) as { data: string; mimeType: string }[];
+        const startTime = Date.now();
+
+        // Auto-ingest images into the project filesystem
+        if (validImages.length > 0) {
+            console.log("[useChatAI] Auto-ingesting images into project assets...");
+            await updateFiles(prevFiles => {
+                const newFiles = { ...prevFiles };
+                validImages.forEach((img, idx) => {
+                    const ext = img.mimeType.split('/')[1] || 'jpg';
+                    const timestamp = Date.now();
+                    const path = `public/assets/uploads/img_${timestamp}_${idx}.${ext}`;
+                    newFiles[path] = img.data; // Store base64 data
+                });
+                return newFiles;
+            });
+        }
 
         // Add user message via SDK
         const userChatMessage: ChatMessage = {
@@ -197,7 +222,7 @@ export const useChatAI = (
         const controller = new AbortController();
         setAbortController(controller);
         setIsGenerating(true);
-        setStatusMessage("Preparando archivos y contexto...");
+        setStatusMessage("Preparando archivos y subiendo imágenes...");
         try {
             if (activeProjectId && convoId) {
                 // Determine if it's a new project or an improvement
@@ -212,33 +237,67 @@ export const useChatAI = (
                 userMsg.toLowerCase().includes("reinicia") ||
                 userMsg.toLowerCase().includes("recrea");
 
+            // Prepare current files with the newly ingested images for the AI call
+            let apiFiles = { ...files };
+            if (validImages.length > 0) {
+                validImages.forEach((img, idx) => {
+                    const ext = img.mimeType.split('/')[1] || 'jpg';
+                    const timestamp = Date.now();
+                    const path = `public/assets/uploads/img_${timestamp}_${idx}.${ext}`;
+                    apiFiles[path] = img.data;
+                });
+            }
+
             // Auto-switch to Pro model for initial generation or explicit re-creation
             let modelToUse = selectedModel;
-            if ((isNewProject && isFirstMessage) || isRecreateRequest) {
-                modelToUse = "Gemini 2.0 Pro"; // mapped to Pro model candidates in API
-                setStatusMessage("Utilizando modelo de alta calidad para generación premium...");
+            if (reasoningLevel === 'high') {
+                modelToUse = 'Multipass Agentic (Vertex)';
+                setStatusMessage("Iniciando flujo multi-agente de Vertex AI (Arquitecto + Programador + Pulidor)...");
+            } else if ((isNewProject && isFirstMessage) || isRecreateRequest) {
+                modelToUse = "Gemini 1.5 Pro";
+                setStatusMessage("Utilizando Gemini 1.5 Pro para estructuración premium...");
+            }
+
+            // Add status cycle for multi-agent
+            let statusInterval: NodeJS.Timeout | null = null;
+            if (modelToUse === 'Multipass Agentic (Vertex)') {
+                let step = 0;
+                const steps = [
+                    "Vertex AI: Arquitecto planificando estructura...",
+                    "Vertex AI: Programador generando código reactivo...",
+                    "Vertex AI: Pulidor visual aplicando animaciones y estilos premium...",
+                    "Vertex AI: Finalizando ensamblaje del proyecto..."
+                ];
+                statusInterval = setInterval(() => {
+                    if (step < steps.length - 1) {
+                        step++;
+                        setStatusMessage(steps[step]);
+                    }
+                }, 8000);
             }
 
             const res = await fetch('/api/web-builder/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    // Only send content and role for history, and current message with base64 images
                     messages: [...messages, userChatMessage].map(m => {
                         const payload: any = { role: m.role, content: m.content };
-                        // Only send images for the message we just sent (the last one)
                         if (m.id === userChatMessage.id && validImages.length > 0) {
                             payload.images = validImages;
                         }
                         return payload;
                     }),
-                    currentFiles: files,
+                    currentFiles: apiFiles,
                     model: modelToUse
                 }),
                 signal: controller.signal
             });
 
+            if (statusInterval) clearInterval(statusInterval);
+
             const data: AIResponse = await res.json();
+            const endTime = Date.now();
+            const thinkingTime = Math.floor((endTime - startTime) / 1000);
 
             setStatusMessage("Procesando respuesta técnica...");
 
@@ -262,6 +321,36 @@ export const useChatAI = (
             }
 
             const finalData = parsedData || data;
+
+            // Simulate Structured Steps for ReasoningBlock
+            const generatedSteps: ChatStep[] = [];
+            if (finalData.type === 'plan') {
+                generatedSteps.push(
+                    { id: '1', label: 'Analizar requerimientos', status: 'done', type: 'laboral' },
+                    { id: '2', label: 'Diseñar arquitectura de componentes', status: 'current', type: 'laboral' },
+                    { id: '3', label: 'Estructurar plan de ejecución', status: 'pending', type: 'proximo' },
+                    { id: '4', label: 'Validar coherencia visual', status: 'pending', type: 'proximo' }
+                );
+            } else if (finalData.type === 'code_update') {
+                generatedSteps.push(
+                    { id: '1', label: 'Análisis de diferencias (Diffing)', status: 'done', type: 'laboral' },
+                    { id: '2', label: 'Aplicar parches quirúrgicos', status: 'done', type: 'laboral' },
+                    { id: '3', label: 'Ensamblar archivos modificados', status: 'current', type: 'laboral' },
+                    { id: '4', label: 'Sincronizar visor y editor', status: 'pending', type: 'proximo' }
+                );
+            } else {
+                generatedSteps.push(
+                    { id: '1', label: 'Analizar consulta del usuario', status: 'done', type: 'laboral' },
+                    { id: '2', label: 'Generar respuesta contextual', status: 'done', type: 'laboral' }
+                );
+            }
+
+            // Mark all active/pending steps as 'done' for the final message persistence
+            const finalSteps: ChatStep[] = generatedSteps.map(s => ({
+                ...s,
+                status: 'done' as const
+            }));
+
             if (finalData.type === 'code_update' && finalData.files && finalData.files.length > 0) {
                 console.group("[AI Code Update]");
                 console.log("Files received:", finalData.files.map(f => f.path));
@@ -291,7 +380,9 @@ export const useChatAI = (
                     id: crypto.randomUUID(),
                     role: 'ai' as const,
                     content: finalData.content || `He preparado un plan para "${finalData.plan.summary}".`,
-                    plan: finalData.plan
+                    plan: finalData.plan,
+                    thinkingTime,
+                    steps: finalSteps
                 };
             }
             else if (finalData.type === 'code_update' && finalData.files) {
@@ -299,17 +390,18 @@ export const useChatAI = (
                     id: crypto.randomUUID(),
                     role: 'ai' as const,
                     content: finalData.content || "Mejoras aplicadas correctamente.",
-                    checklist: finalData.files.map(f => ({ label: `Actualizado ${f.path}`, completed: true }))
+                    checklist: finalData.files.map(f => ({ label: `Actualizado ${f.path}`, completed: true })),
+                    thinkingTime,
+                    steps: finalSteps
                 };
             }
             else {
-                // For message or question, ensure there's no technical junk
-                let cleanContent = finalData.content;
-
                 aiChatMessage = {
                     id: crypto.randomUUID(),
                     role: 'ai' as const,
-                    content: cleanContent
+                    content: finalData.content || "",
+                    thinkingTime,
+                    steps: finalSteps
                 };
             }
 

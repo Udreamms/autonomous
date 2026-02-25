@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Copy, Download, Maximize2, Minimize2, ChevronRight, FileCode, Search, AlertTriangle } from "lucide-react";
+import Editor, { Monaco } from "@monaco-editor/react";
 import { FileTree } from "./FileTree";
 
 interface CodeEditorProps {
@@ -27,7 +28,6 @@ export const CodeEditor = ({
 }: CodeEditorProps) => {
     const [openFiles, setOpenFiles] = useState<string[]>([]);
     const [isMaxEditor, setIsMaxEditor] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Sync activeFile with openFiles
     useEffect(() => {
@@ -35,6 +35,48 @@ export const CodeEditor = ({
             setOpenFiles(prev => prev.includes(activeFile) ? prev : [...prev, activeFile]);
         }
     }, [activeFile]);
+
+    // Handle Editor Search from Preview (Bidirectional Sync)
+    const editorRef = useRef<any>(null);
+    useEffect(() => {
+        const onSearch = (e: any) => {
+            const term = e.detail;
+            if (editorRef.current && term) {
+                const model = editorRef.current.getModel();
+                if (model) {
+                    const matches = model.findMatches(term, false, false, false, null, true);
+                    if (matches && matches.length > 0) {
+                        const match = matches[0];
+                        editorRef.current.revealRangeInCenter(match.range);
+                        editorRef.current.setSelection(match.range);
+                    }
+                }
+            }
+        };
+
+        const onGotoLine = (e: any) => {
+            const { line } = e.detail;
+            if (editorRef.current && line) {
+                setTimeout(() => {
+                    editorRef.current.revealLineInCenter(line);
+                    editorRef.current.setSelection({
+                        startLineNumber: line,
+                        startColumn: 1,
+                        endLineNumber: line,
+                        endColumn: 100
+                    });
+                    editorRef.current.focus();
+                }, 100);
+            }
+        };
+
+        window.addEventListener('editor-search', onSearch);
+        window.addEventListener('editor-goto-line', onGotoLine);
+        return () => {
+            window.removeEventListener('editor-search', onSearch);
+            window.removeEventListener('editor-goto-line', onGotoLine);
+        };
+    }, []);
 
     // Handle closing a tab
     const closeTab = (e: React.MouseEvent, path: string) => {
@@ -163,22 +205,44 @@ export const CodeEditor = ({
                         </div>
                     ) : (
                         <div className="flex flex-1 overflow-hidden">
-                            {/* Line Numbers */}
-                            <div className="w-12 bg-[#1e1e1e] text-[#555] text-right pr-4 pt-4 font-mono text-[13px] select-none border-r border-[#2a2a2a]">
-                                {lines.map((_, i) => (
-                                    <div key={i} className="h-6 leading-6">{i + 1}</div>
-                                ))}
+                            <div className="flex-1 relative overflow-hidden flex">
+                                <Editor
+                                    height="100%"
+                                    defaultLanguage="typescript"
+                                    theme="vs-dark"
+                                    value={codeContent}
+                                    onMount={(editor) => { editorRef.current = editor; }}
+                                    beforeMount={(monaco: Monaco) => {
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        const ts = (monaco as any).languages?.typescript;
+                                        ts?.typescriptDefaults?.setDiagnosticsOptions({
+                                            noSemanticValidation: true,
+                                            noSyntaxValidation: true,
+                                        });
+                                        ts?.javascriptDefaults?.setDiagnosticsOptions({
+                                            noSemanticValidation: true,
+                                            noSyntaxValidation: true,
+                                        });
+                                    }}
+                                    onChange={(val) => {
+                                        updateFiles(prev => ({ ...prev, [activeFile]: val || "" }));
+                                    }}
+                                    options={{
+                                        minimap: { enabled: false },
+                                        fontSize: 14,
+                                        lineNumbers: 'on',
+                                        roundedSelection: false,
+                                        scrollBeyondLastLine: false,
+                                        readOnly: false,
+                                        automaticLayout: true,
+                                        padding: { top: 20 },
+                                        glyphMargin: false,
+                                        folding: true,
+                                        lineDecorationsWidth: 10,
+                                        lineNumbersMinChars: 3,
+                                    }}
+                                />
                             </div>
-
-                            {/* Editor Textarea */}
-                            <textarea
-                                ref={textareaRef}
-                                className="flex-1 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[14px] p-4 pt-4 resize-none focus:outline-none custom-scrollbar leading-6"
-                                value={codeContent}
-                                onChange={(e) => updateFiles(prev => ({ ...prev, [activeFile]: e.target.value }))}
-                                spellCheck={false}
-                                wrap="off"
-                            />
                         </div>
                     )}
 
