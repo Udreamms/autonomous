@@ -181,8 +181,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
     return (
         <div className="flex flex-col h-full w-full bg-neutral-900/40">
-            {/* Header - Fixed */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-black/20 flex-shrink-0">
+            {/* Header - Fixed (Hidden per user request) */}
+            <div className="hidden">
                 <h2 className="font-bold text-xs text-neutral-400 uppercase tracking-[0.2em]">
                     {activeTab === 'perfil' && 'PERFIL'}
                     {activeTab === 'pagos' && 'PAGOS'}

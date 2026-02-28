@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2, GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { cn } from '@/lib/utils';
 import {
   MessageCircle,
   Instagram,
@@ -38,7 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts = [] }: any) => {
+const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts = [], isCompact }: any) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
@@ -106,25 +107,45 @@ const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts =
 
   const { flag, code } = getCountryInfo(card.contactNumber);
 
+  const getChannelColor = (channel = '') => {
+    const c = (channel || '').toLowerCase();
+    if (c.includes('instagram')) return 'border-pink-500';
+    if (c.includes('messenger') || c.includes('facebook')) return 'border-blue-600';
+    if (c.includes('web')) return 'border-cyan-400';
+    if (c.includes('telegram')) return 'border-sky-500';
+    if (c.includes('x') || c.includes('twitter')) return 'border-neutral-400';
+    if (c.includes('tiktok')) return 'border-pink-400';
+    return 'border-emerald-500';
+  };
+
+  const channelColorClass = getChannelColor(card.channel || card.source);
+
   return (
     <TooltipProvider>
       <div
         ref={setNodeRef}
         style={style}
         data-card-id={card.id}
-        className={`group relative ${cardColor} p-0 rounded-xl border border-neutral-700/20 shadow-sm hover:border-neutral-700 transition-all duration-200 touch-none flex items-stretch select-none overflow-hidden max-h-[90px]`}
+        className={cn(
+          "group relative backdrop-blur-md p-0 rounded-xl border border-white/5 transition-all duration-300 touch-none flex items-stretch select-none overflow-hidden hover:bg-white/5 hover:-translate-y-1 hover:shadow-2xl",
+          cardColor || "bg-neutral-800/60",
+          isCompact ? "max-h-[72px]" : "max-h-[90px]"
+        )}
       >
         {/* Full-height Drag Handle Side */}
         <div
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 w-4 flex flex-col items-center justify-center gap-1 cursor-grab text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800/30 transition-all active:cursor-grabbing border-r border-neutral-800/10"
+          className={cn(
+            "flex-shrink-0 flex flex-col items-center justify-center gap-1 cursor-grab text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800/30 transition-all active:cursor-grabbing border-r border-neutral-800/10",
+            isCompact ? "w-3" : "w-4"
+          )}
         >
-          <GripVertical size={12} />
+          <GripVertical size={isCompact ? 10 : 12} />
         </div>
 
         {/* Card Content Area */}
-        <div className="flex-grow p-2 flex flex-col gap-0.5 min-w-0">
+        <div className={cn("flex-grow flex flex-col min-w-0", isCompact ? "p-1.5 gap-0" : "p-2 gap-0.5")}>
           <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-1.5 min-w-0">
               {(() => {
@@ -152,7 +173,7 @@ const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts =
                 // Default to WhatsApp
                 return <WhatsappIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />;
               })()}
-              <h3 className="font-medium text-[11px] text-white truncate leading-none tracking-tight">
+              <h3 className="font-bold text-[11px] text-white truncate leading-none tracking-tight">
                 {(() => {
                   const contactId = (card as any).contactId;
                   let linkedContact: any = null;
@@ -173,12 +194,12 @@ const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts =
               </h3>
             </div>
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-[8px] font-medium text-neutral-500 uppercase tracking-tight tabular-nums leading-none">
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className={cn("font-medium text-neutral-500 uppercase tracking-tight tabular-nums leading-none", isCompact ? "text-[7px]" : "text-[8px]")}>
                 {formatTimestamp(card.updatedAt || card.createdAt)}
               </span>
               {card.unreadCount > 0 && (
-                <Badge className="bg-blue-600 text-white border-transparent h-3.5 min-w-[14px] flex items-center justify-center p-0 text-[9px] font-medium rounded-sm">
+                <Badge className={cn("bg-blue-600 text-white border-transparent flex items-center justify-center p-0 font-medium rounded-sm", isCompact ? "h-3 min-w-[12px] text-[7px]" : "h-3.5 min-w-[14px] text-[9px]")}>
                   {card.unreadCount}
                 </Badge>
               )}
@@ -186,13 +207,13 @@ const Card = ({ card, groupId, onClick, cardColor = 'bg-neutral-800', contacts =
           </div>
 
           <div onClick={onClick} className="flex-grow cursor-pointer relative z-10 space-y-0.5 min-h-0">
-            <p className="text-[9px] text-neutral-400 font-medium break-words line-clamp-1 leading-tight mb-1">
+            <p className={cn("text-neutral-400 font-medium break-words leading-tight line-clamp-1", isCompact ? "text-[8px] mb-0.5" : "text-[9px] mb-1")}>
               {card.lastMessage || '...'}
             </p>
 
             <div className="flex items-center justify-between mt-auto">
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] text-neutral-500 font-medium tracking-wide">
+                <span className={cn("text-neutral-500 font-medium tracking-wide", isCompact ? "text-[7px]" : "text-[9px]")}>
                   {flag} {card.contactNumber || ''}
                 </span>
               </div>

@@ -184,6 +184,8 @@ export interface CardData {
     channel?: string;
     primary_channel?: string;
     mutedUntil?: Timestamp | null;
+    extraData?: { [key: string]: any };
+    propertyOrder?: string[];
 }
 
 export interface ConversationModalProps {

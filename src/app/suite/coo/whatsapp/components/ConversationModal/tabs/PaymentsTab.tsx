@@ -81,16 +81,16 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
             >
                 {/* Header / Summary Section */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="group p-3 border-l-2 border-emerald-500 bg-white/[0.02] hover:bg-white/[0.04] transition-colors rounded-r-md">
+                    <div className="group p-3 border-l-2 border-neutral-600 bg-white/[0.02] hover:bg-white/[0.04] transition-colors rounded-r-md">
                         <div className="flex items-center gap-2 mb-1">
-                            <DollarSign size={10} className="text-emerald-500" />
+                            <DollarSign size={10} className="text-neutral-500" />
                             <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.15em]">CAPITAL CONSOLIDADO</h5>
                         </div>
                         <p className="text-xl font-bold text-white tracking-tight font-mono">${totalSpent.toFixed(2)}</p>
                     </div>
-                    <div className="group p-3 border-l-2 border-blue-500 bg-white/[0.02] hover:bg-white/[0.04] transition-colors rounded-r-md">
+                    <div className="group p-3 border-l-2 border-neutral-700 bg-white/[0.02] hover:bg-white/[0.04] transition-colors rounded-r-md">
                         <div className="flex items-center gap-2 mb-1">
-                            <Calendar size={10} className="text-blue-500" />
+                            <Calendar size={10} className="text-neutral-500" />
                             <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.15em]">PRÓXIMO DÉBITO</h5>
                         </div>
                         <p className="text-xl font-bold text-white tracking-tight font-mono">{nextBillingDateStr}</p>
@@ -110,7 +110,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                     className={cn(
                                         "relative group flex flex-col p-3 rounded-xl border transition-all duration-300 text-left h-full",
                                         serviceType === 'visa_b1_b2'
-                                            ? "bg-blue-600/10 border-blue-500/50 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                                            ? "bg-neutral-800 border-neutral-600 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
                                             : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/40"
                                     )}
                                 >
@@ -118,12 +118,12 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                         <div className="mb-2">
                                             {serviceType === 'visa_b1_b2' && (
                                                 <div className="absolute top-2 right-2">
-                                                    <CheckCheck size={12} className="text-blue-400" />
+                                                    <CheckCheck size={12} className="text-neutral-300" />
                                                 </div>
                                             )}
                                             <span className={cn(
                                                 "text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider mb-2 inline-block",
-                                                serviceType === 'visa_b1_b2' ? "bg-blue-500/20 text-blue-300" : "bg-white/5 text-neutral-500"
+                                                serviceType === 'visa_b1_b2' ? "bg-neutral-700 text-neutral-200" : "bg-white/5 text-neutral-500"
                                             )}>
                                                 TURISMO
                                             </span>
@@ -142,7 +142,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                     className={cn(
                                         "relative group flex flex-col p-3 rounded-xl border transition-all duration-300 text-left h-full",
                                         serviceType === 'visa_f1'
-                                            ? "bg-purple-600/10 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                                            ? "bg-neutral-800 border-neutral-600 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
                                             : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/40"
                                     )}
                                 >
@@ -150,12 +150,12 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                         <div className="mb-2">
                                             {serviceType === 'visa_f1' && (
                                                 <div className="absolute top-2 right-2">
-                                                    <CheckCheck size={12} className="text-purple-400" />
+                                                    <CheckCheck size={12} className="text-neutral-300" />
                                                 </div>
                                             )}
                                             <span className={cn(
                                                 "text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider mb-2 inline-block",
-                                                serviceType === 'visa_f1' ? "bg-purple-500/20 text-purple-300" : "bg-white/5 text-neutral-500"
+                                                serviceType === 'visa_f1' ? "bg-neutral-700 text-neutral-200" : "bg-white/5 text-neutral-500"
                                             )}>
                                                 ESTUDIANTE
                                             </span>
@@ -174,7 +174,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                     className={cn(
                                         "relative group flex flex-col p-3 rounded-xl border transition-all duration-300 text-left h-full",
                                         serviceType === 'fifa_2026'
-                                            ? "bg-emerald-600/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                                            ? "bg-neutral-800 border-neutral-600 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
                                             : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/40"
                                     )}
                                 >
@@ -182,12 +182,12 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                         <div className="mb-2">
                                             {serviceType === 'fifa_2026' && (
                                                 <div className="absolute top-2 right-2">
-                                                    <CheckCheck size={12} className="text-emerald-400" />
+                                                    <CheckCheck size={12} className="text-neutral-300" />
                                                 </div>
                                             )}
                                             <span className={cn(
                                                 "text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider mb-2 inline-block",
-                                                serviceType === 'fifa_2026' ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-neutral-500"
+                                                serviceType === 'fifa_2026' ? "bg-neutral-700 text-neutral-200" : "bg-white/5 text-neutral-500"
                                             )}>
                                                 EVENTO
                                             </span>
@@ -261,28 +261,20 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                     const list = selectedPlan ? [selectedPlan] : plans;
 
                                     const getThemeClasses = (isActive: boolean) => {
-                                        if (theme === 'blue') return isActive ? "bg-blue-600/10 border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.15)]" : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/60";
-                                        if (theme === 'purple') return isActive ? "bg-purple-600/10 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.15)]" : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/60";
-                                        return isActive ? "bg-emerald-600/10 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]" : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/60";
+                                        return isActive ? "bg-neutral-800 border-neutral-600 shadow-[0_0_20px_rgba(255,255,255,0.05)]" : "bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-800/60";
                                     };
 
                                     const getButtonClasses = (isActive: boolean) => {
-                                        if (theme === 'blue') return isActive ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" : "bg-white/5 text-neutral-400 group-hover:bg-white/10 group-hover:text-neutral-200";
-                                        if (theme === 'purple') return isActive ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20" : "bg-white/5 text-neutral-400 group-hover:bg-white/10 group-hover:text-neutral-200";
-                                        return isActive ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20" : "bg-white/5 text-neutral-400 group-hover:bg-white/10 group-hover:text-neutral-200";
+                                        return isActive ? "bg-neutral-700 text-white shadow-lg shadow-black/20" : "bg-white/5 text-neutral-400 group-hover:bg-white/10 group-hover:text-neutral-200";
                                     };
 
                                     const getTextClasses = (isActive: boolean) => {
                                         if (isActive) return "text-white";
-                                        if (theme === 'blue') return "text-blue-400";
-                                        if (theme === 'purple') return "text-purple-400";
-                                        return "text-emerald-400";
+                                        return "text-neutral-400";
                                     };
 
                                     const getBulletColor = () => {
-                                        if (theme === 'blue') return "marker:text-blue-500";
-                                        if (theme === 'purple') return "marker:text-purple-500";
-                                        return "marker:text-emerald-500";
+                                        return "marker:text-neutral-600";
                                     };
 
                                     return (
@@ -298,10 +290,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                                 >
                                                     {plan.popular && !selectedPlan && (
                                                         <div className={cn(
-                                                            "absolute -top-3 left-1/2 -translate-x-1/2 bg-neutral-950 border text-[8px] font-bold px-3 py-0.5 rounded-full shadow-lg z-10 uppercase tracking-widest",
-                                                            theme === 'blue' ? "border-blue-500/30 text-blue-400" :
-                                                                theme === 'purple' ? "border-purple-500/30 text-purple-400" :
-                                                                    "border-emerald-500/30 text-emerald-400"
+                                                            "absolute -top-3 left-1/2 -translate-x-1/2 bg-neutral-950 border border-neutral-700/50 text-neutral-400 text-[8px] font-bold px-3 py-0.5 rounded-full shadow-lg z-10 uppercase tracking-widest"
                                                         )}>
                                                             Más Popular
                                                         </div>
@@ -361,9 +350,9 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                                 <h5 className="font-medium text-neutral-200 text-sm">{sub.name}</h5>
                                                 <span className={cn(
                                                     "text-[8px] font-medium px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-neutral-800/50",
-                                                    sub.status === 'active' ? "text-emerald-500" :
-                                                        sub.status === 'past_due' ? "text-amber-500" :
-                                                            "text-red-500"
+                                                    sub.status === 'active' ? "text-neutral-300" :
+                                                        sub.status === 'past_due' ? "text-neutral-400" :
+                                                            "text-neutral-500"
                                                 )}>
                                                     {sub.status.toUpperCase()}
                                                 </span>
@@ -435,7 +424,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                 </div>
                                 <div className="flex justify-end gap-2">
                                     <Button variant="ghost" onClick={() => setIsAddingPayment(false)} className="h-6 text-[9px] text-neutral-500 uppercase">Cancelar</Button>
-                                    <Button onClick={handleSavePaymentMethod} className="h-6 bg-blue-600 text-[9px] uppercase px-3">Guardar</Button>
+                                    <Button onClick={handleSavePaymentMethod} className="h-6 bg-neutral-700 text-[9px] uppercase px-3">Guardar</Button>
                                 </div>
                             </div>
                         )}
@@ -449,7 +438,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-9 h-6 rounded-[4px] bg-neutral-800 flex items-center justify-center border border-neutral-700/50 shrink-0">
-                                                {method.type === 'visa' ? <CreditCard size={12} className="text-blue-400" /> : <CreditCard size={12} className="text-neutral-400" />}
+                                                <CreditCard size={12} className="text-neutral-400" />
                                             </div>
                                             <div className="flex flex-col">
                                                 <p className="text-[13px] font-medium text-neutral-200 tracking-wider">
@@ -459,7 +448,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                                     <span className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider">
                                                         EXP: {method.expiry || '--/--'}
                                                     </span>
-                                                    {method.isDefault && <span className="text-[8px] text-blue-500 font-medium uppercase tracking-[0.1em]">PREDETERMINADA</span>}
+                                                    {method.isDefault && <span className="text-[8px] text-neutral-400 font-medium uppercase tracking-[0.1em]">PREDETERMINADA</span>}
                                                 </div>
                                             </div>
                                         </div>
@@ -492,8 +481,8 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                                             <div className="flex items-center gap-4">
                                                 <div className={cn(
                                                     "w-2 h-2 rounded-full",
-                                                    tx.status === 'completed' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" :
-                                                        tx.status === 'pending' ? "bg-amber-500" : "bg-red-500"
+                                                    tx.status === 'completed' ? "bg-neutral-500 shadow-[0_0_8px_rgba(255,255,255,0.1)]" :
+                                                        tx.status === 'pending' ? "bg-neutral-600" : "bg-neutral-800"
                                                 )} />
                                                 <div>
                                                     <p className="text-[11px] font-bold text-neutral-200 tracking-tight">{tx.description.toUpperCase()}</p>
@@ -528,7 +517,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                     >
                         <Button
                             onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full h-12 w-12 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center border border-white/10 group animate-bounce"
+                            className="bg-neutral-800 hover:bg-neutral-700 text-white rounded-full h-12 w-12 shadow-[0_0_20px_rgba(255,255,255,0.05)] flex items-center justify-center border border-white/10 group animate-bounce"
                         >
                             <ChevronDown className="w-6 h-6 group-hover:translate-y-0.5 transition-transform" />
                         </Button>

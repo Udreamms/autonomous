@@ -105,7 +105,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                             </h5>
                         </div>
                         <div className="flex items-center gap-3">
-                            <span className="text-lg font-bold text-blue-600">
+                            <span className="text-lg font-bold text-neutral-300">
                                 {checklistProgress}%
                             </span>
                             <Button
@@ -120,7 +120,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                     </div>
                     <div className="h-2 w-full bg-neutral-900 rounded-full overflow-hidden border border-neutral-800/30">
                         <div
-                            className="h-full bg-blue-600 transition-all duration-1000 ease-out"
+                            className="h-full bg-neutral-600 transition-all duration-1000 ease-out"
                             style={{ width: `${checklistProgress}%` }}
                         />
                     </div>
@@ -131,7 +131,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                     <div className="flex flex-col">
 
                         {isAddingCheckIn && (
-                            <div className="mb-4 pl-2 border-l-2 border-blue-500/50">
+                            <div className="mb-4 pl-2 border-l-2 border-neutral-500/50">
                                 <Textarea
                                     value={newCheckIn}
                                     onChange={(e) => setNewCheckIn(e.target.value)}
@@ -141,7 +141,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                 />
                                 <div className="flex justify-end gap-2 mt-2">
                                     <Button variant="ghost" onClick={() => setIsAddingCheckIn(false)} className="text-[9px] h-5 font-medium text-neutral-600 uppercase tracking-wider hover:text-neutral-400 p-0">Cancel</Button>
-                                    <Button variant="ghost" onClick={handleSaveCheckIn} className="text-[9px] h-5 font-medium text-blue-500 uppercase tracking-wider hover:text-blue-400 p-0 ml-2">Save</Button>
+                                    <Button variant="ghost" onClick={handleSaveCheckIn} className="text-[9px] h-5 font-medium text-neutral-400 uppercase tracking-wider hover:text-neutral-200 p-0 ml-2">Save</Button>
                                 </div>
                             </div>
                         )}
@@ -158,7 +158,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                             className={cn(
                                                 "mt-1 w-5 h-5 rounded-[4px] flex items-center justify-center flex-shrink-0 transition-all border-2",
                                                 checkIn.completed
-                                                    ? "bg-blue-600 border-blue-600 text-white"
+                                                    ? "bg-neutral-600 border-neutral-600 text-white"
                                                     : "bg-transparent border-neutral-800 hover:border-neutral-600 text-transparent"
                                             )}
                                         >
@@ -171,7 +171,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                                     <Textarea
                                                         value={editText}
                                                         onChange={(e) => setEditText(e.target.value)}
-                                                        className="min-h-[40px] bg-transparent border-b border-blue-500/50 p-0 text-neutral-200 resize-none text-[12px] focus:ring-0 rounded-none leading-tight"
+                                                        className="min-h-[40px] bg-transparent border-b border-neutral-700 p-0 text-neutral-200 resize-none text-[12px] focus:ring-0 rounded-none leading-tight"
                                                         autoFocus
                                                         onBlur={handleSaveEditedCheckIn}
                                                     />
@@ -189,7 +189,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                                             {checkIn.timestamp?.toDate().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                                                         </span>
                                                         <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                                            <button onClick={() => setEditingCheckInId(checkIn.id)} className="p-1.5 text-neutral-600 hover:text-blue-400 transition-colors"><Edit2 size={12} /></button>
+                                                            <button onClick={() => setEditingCheckInId(checkIn.id)} className="p-1.5 text-neutral-600 hover:text-neutral-400 transition-colors"><Edit2 size={12} /></button>
                                                             <button onClick={() => handleDeleteCheckIn(checkIn.id)} className="p-1.5 text-neutral-600 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
                                                         </div>
                                                     </div>
@@ -221,7 +221,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                         </div>
 
                         {isAddingNote && (
-                            <div className="mb-4 pl-2 border-l-2 border-purple-500/50">
+                            <div className="mb-4 pl-2 border-l-2 border-neutral-700/50">
                                 <Textarea
                                     value={newNote}
                                     onChange={(e) => setNewNote(e.target.value)}
@@ -231,7 +231,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                 />
                                 <div className="flex justify-end gap-2 mt-2">
                                     <Button variant="ghost" onClick={() => setIsAddingNote(false)} className="text-[9px] h-5 font-medium text-neutral-600 uppercase tracking-wider hover:text-neutral-400 p-0">Cancel</Button>
-                                    <Button variant="ghost" onClick={handleSaveNote} className="text-[9px] h-5 font-medium text-purple-500 uppercase tracking-wider hover:text-purple-400 p-0 ml-2">Save</Button>
+                                    <Button variant="ghost" onClick={handleSaveNote} className="text-[9px] h-5 font-medium text-neutral-500 uppercase tracking-wider hover:text-neutral-300 p-0 ml-2">Save</Button>
                                 </div>
                             </div>
                         )}
@@ -245,12 +245,12 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                                 <Textarea
                                                     value={editText}
                                                     onChange={(e) => setEditText(e.target.value)}
-                                                    className="min-h-[60px] bg-transparent border-b border-purple-500/50 p-0 text-neutral-200 resize-none text-[10px] font-mono focus:ring-0 rounded-none leading-tight"
+                                                    className="min-h-[60px] bg-transparent border-b border-neutral-700 p-0 text-neutral-200 resize-none text-[10px] font-mono focus:ring-0 rounded-none leading-tight"
                                                     autoFocus
                                                 />
                                                 <div className="flex gap-2 justify-end">
                                                     <Button variant="ghost" onClick={() => setEditingNoteId(null)} className="text-[9px] h-4 p-0 text-neutral-600 hover:text-white">Cancel</Button>
-                                                    <Button variant="ghost" onClick={handleSaveEditedNote} className="text-[9px] h-4 p-0 text-purple-500 hover:text-purple-400">Save</Button>
+                                                    <Button variant="ghost" onClick={handleSaveEditedNote} className="text-[9px] h-4 p-0 text-neutral-300 hover:text-white">Save</Button>
                                                 </div>
                                             </div>
                                         ) : (
@@ -265,7 +265,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                                         </span>
                                                     </div>
                                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => handleEditNote(note)} className="p-1 text-neutral-600 hover:text-blue-400"><Edit2 size={10} /></button>
+                                                        <button onClick={() => handleEditNote(note)} className="p-1 text-neutral-600 hover:text-neutral-400"><Edit2 size={10} /></button>
                                                         <button onClick={() => handleDeleteNote(note.id)} className="p-1 text-neutral-600 hover:text-red-400"><Trash2 size={10} /></button>
                                                     </div>
                                                 </div>
@@ -292,9 +292,9 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                     <div
                                         key={doc.id || idx}
                                         onClick={() => setPreviewFile({ url: doc.url, name: doc.name || 'documento', type: doc.type || '' })}
-                                        className="flex items-center gap-3 p-3 rounded-xl bg-neutral-900/40 border border-neutral-800/50 hover:border-blue-500/30 hover:bg-neutral-900 transition-all group cursor-pointer"
+                                        className="flex items-center gap-3 p-3 rounded-xl bg-neutral-900/40 border border-neutral-800/50 hover:border-neutral-700/50 hover:bg-neutral-900 transition-all group cursor-pointer"
                                     >
-                                        <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-neutral-400 group-hover:text-blue-400 transition-colors">
+                                        <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-neutral-400 group-hover:text-neutral-200 transition-colors">
                                             {doc.name?.toLowerCase().endsWith('.xls') || doc.name?.toLowerCase().endsWith('.xlsx') ? (
                                                 <FileSpreadsheet size={16} />
                                             ) : (
@@ -309,7 +309,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                                                 <span className="text-[8px] text-neutral-500 font-medium tracking-tight">{formatBytes(doc.size || 0)}</span>
                                             </div>
                                         </div>
-                                        <ChevronRight size={12} className="text-neutral-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+                                        <ChevronRight size={12} className="text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5 transition-all" />
                                     </div>
                                 ))
                             ) : (

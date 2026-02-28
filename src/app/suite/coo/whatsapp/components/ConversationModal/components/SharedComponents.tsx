@@ -39,7 +39,7 @@ export function ContactFieldCard({
 }: ContactFieldCardProps) {
     return (
         <div className="flex items-center gap-2 p-2 bg-neutral-900/50 rounded-2xl border border-neutral-800/50 hover:bg-neutral-800/50 transition-all group relative pr-16 text-xs">
-            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-neutral-800 text-neutral-400 group-hover:bg-blue-600/10 group-hover:text-blue-400 transition-colors">
+            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-neutral-800 text-neutral-400 group-hover:bg-neutral-700/50 group-hover:text-neutral-300 transition-colors">
                 {icon}
             </div>
             <div className="flex-1 min-w-0">
@@ -52,7 +52,7 @@ export function ContactFieldCard({
                             name={name}
                             value={value}
                             onChange={onChange}
-                            className="h-8 bg-neutral-800 border-neutral-700 text-sm focus:ring-blue-500/50 pr-2"
+                            className="h-8 bg-neutral-800 border-neutral-700 text-sm focus:ring-neutral-500/50 pr-2"
                             placeholder={placeholder}
                             autoFocus
                         />
@@ -69,7 +69,7 @@ export function ContactFieldCard({
                     {onStartEdit && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
-                            className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors"
+                            className="p-1.5 rounded-lg bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200 transition-colors"
                             title="Editar"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

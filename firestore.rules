@@ -1,49 +1,42 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Global access for authenticated users (common in development)
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
 
-    // Allow authenticated users to manage Kanban groups
+    // Specific collection rules
     match /kanban-groups/{groupId} {
-      allow read, create, update, delete: if request.auth != null;
+      allow read, write: if true;
+    }
 
-      // Allow authenticated users to manage cards within a group
-      match /cards/{cardId} {
-        allow read, create, update, delete: if request.auth != null;
+    match /cards/{cardId} {
+      allow read, write: if true;
+    }
+
+    match /chatbots/{chatbotId} {
+      allow read, write: if true;
+      
+      match /pages/{pageId} {
+        allow read, write: if true;
       }
     }
 
-    // This rule allows the search functionality to work.
-    // It lets any authenticated user read from the 'cards' collection group.
-    match /{path=**}/cards/{cardId} {
-      allow read: if request.auth != null;
-    }
-
-    // Allows any authenticated user to create, read, update, and delete chatbots.
-    match /chatbots/{botId} {
+    // Web projects: allow read for anyone to enable public previews
+    match /web-projects/{projectId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // Manage Web Builder Projects
-    match /web-projects/{projectId} {
-      allow read, write, delete: if true; // Relaxed for local development testing
-      
-      match /files/{fileId} {
-        allow read, write, delete: if true;
-      }
-      
-      match /conversations/{convId} {
-        allow read, write, delete: if true;
-        
-        match /messages/{messageId} {
-          allow read, write, delete: if true;
-        }
-      }
-    }
-
-    // New rule for contacts collection
+    // CRM Contacts
     match /contacts/{contactId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Catch-all (Opcional, pero recomendado para desarrollo)
+    match /{document=**} {
       allow read, write: if request.auth != null;
     }
   }

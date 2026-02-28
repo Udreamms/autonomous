@@ -11,10 +11,13 @@ export const useCardSubscription = ({ card, groups = [], groupName }: Conversati
     const [forcedCardId, setForcedCardId] = useState<string | null>(null);
     const [forcedGroupId, setForcedGroupId] = useState<string | null>(null);
 
-    // Reset forced state when props change
+    // Reset state and forced IDs when props change to prevent data leak
     useEffect(() => {
         setForcedCardId(null);
         setForcedGroupId(null);
+        setLiveCardData(null);
+        setContactInfo({});
+        setCrmData(null);
     }, [card?.id]);
 
     const currentGroupId = useMemo(() => {

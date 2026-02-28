@@ -7,6 +7,7 @@ import Card from './Card';
 import { Plus, Trash2, MoreVertical, Palette, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -36,15 +37,15 @@ interface CardData {
 }
 
 const colors = [
-    { name: 'Predeterminado', value: 'bg-neutral-900/50', cardColor: 'bg-neutral-800' },
-    { name: 'Piedra', value: 'bg-stone-900/50', cardColor: 'bg-stone-800' },
-    { name: 'Naranja', value: 'bg-orange-900/50', cardColor: 'bg-orange-800' },
-    { name: 'Amarillo', value: 'bg-yellow-900/50', cardColor: 'bg-yellow-800' },
-    { name: 'Verde', value: 'bg-green-900/50', cardColor: 'bg-green-800' },
-    { name: 'Azul', value: 'bg-blue-900/50', cardColor: 'bg-blue-800' },
-    { name: 'Púrpura', value: 'bg-purple-900/50', cardColor: 'bg-purple-800' },
-    { name: 'Rosa', value: 'bg-pink-900/50', cardColor: 'bg-pink-800' },
-    { name: 'Rojo', value: 'bg-red-900/50', cardColor: 'bg-red-800' },
+    { name: 'Predeterminado', value: 'bg-[#121212]/50', cardColor: 'bg-[#181818]/50', textColor: 'text-neutral-400', pill: 'bg-neutral-800' },
+    { name: 'Gris', value: 'bg-[#1a1a1a]', cardColor: 'bg-[#222222]', textColor: 'text-neutral-400', pill: 'bg-[#2a2a2a]' },
+    { name: 'Naranja', value: 'bg-[#1c1811]', cardColor: 'bg-[#241f16]', textColor: 'text-orange-400', pill: 'bg-[#3a2a1a]' },
+    { name: 'Amarillo', value: 'bg-[#1c1b11]', cardColor: 'bg-[#242316]', textColor: 'text-yellow-400', pill: 'bg-[#3a351a]' },
+    { name: 'Verde', value: 'bg-[#111814]', cardColor: 'bg-[#16211b]', textColor: 'text-emerald-400', pill: 'bg-[#1a3a2a]' },
+    { name: 'Azul', value: 'bg-[#111418]', cardColor: 'bg-[#161b21]', textColor: 'text-blue-400', pill: 'bg-[#1a2a3a]' },
+    { name: 'Púrpura', value: 'bg-[#18111c]', cardColor: 'bg-[#211624]', textColor: 'text-purple-400', pill: 'bg-[#2a1a3a]' },
+    { name: 'Rosa', value: 'bg-[#1c1114]', cardColor: 'bg-[#24161b]', textColor: 'text-pink-400', pill: 'bg-[#3a1a25]' },
+    { name: 'Rojo', value: 'bg-[#1c1111]', cardColor: 'bg-[#241616]', textColor: 'text-rose-400', pill: 'bg-[#3a1a1a]' },
 ];
 
 interface KanbanColumnProps {
@@ -54,6 +55,7 @@ interface KanbanColumnProps {
     onCardClick: (card: any) => void;
     onUpdateColor?: (groupId: string, color: string) => void;
     contacts?: any[];
+    isCompact?: boolean;
 }
 
 export const KanbanColumn = ({
@@ -62,7 +64,8 @@ export const KanbanColumn = ({
     allGroups = [],
     onCardClick,
     onUpdateColor,
-    contacts = []
+    contacts = [],
+    isCompact
 }: KanbanColumnProps) => {
     const [isSelectContactOpen, setIsSelectContactOpen] = useState(false);
     const [isCreateClientOpen, setIsCreateClientOpen] = useState(false);
@@ -195,33 +198,37 @@ export const KanbanColumn = ({
         <div
             ref={setNodeRef}
             data-group-id={group.id}
-            className={`flex flex-col ${group.name === 'Bandeja de Entrada' ? 'w-64' : 'w-56'} flex-shrink-0 h-full bg-neutral-900/40 rounded-2xl border border-neutral-800/50 backdrop-blur-sm transition-all duration-300 hover:border-neutral-700/50`}
+            className={cn(
+                "flex flex-col flex-shrink-0 h-full rounded-2xl border border-white/5 transition-all duration-300 hover:border-white/10 shadow-lg overflow-hidden",
+                isCompact ? (group.name === 'Bandeja de Entrada' ? 'w-60' : 'w-52') : (group.name === 'Bandeja de Entrada' ? 'w-64' : 'w-56'),
+                selectedColor.value
+            )}
         >
             {/* Header */}
-            <div className={`${selectedColor.value} rounded-t-2xl p-2.5 flex flex-col border-b border-neutral-800/50`}>
+            <div className="p-3 pb-1 flex flex-col">
                 <div className="flex justify-between items-center group/header">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-2 h-6 rounded-sm ${selectedColor.value.replace('/50', '').replace('-900', '-500')}`}></div>
-                        <h2 className="font-medium text-white text-sm tracking-tight truncate">{group.name}</h2>
-                        <Badge variant="secondary" className="bg-black/40 text-neutral-400 border-neutral-800 font-mono text-[10px] px-2 py-0 rounded-sm">
+                    <div className="flex items-center gap-2">
+                        <div className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold tracking-tight truncate text-white", selectedColor.pill)}>
+                            {group.name}
+                        </div>
+                        <span className="text-white/80 font-mono text-[10px]">
                             {cards.length}
-                        </Badge>
+                        </span>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setIsSelectContactOpen(true)}
-                            className="h-8 w-8 text-neutral-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-full"
+                            className={cn("h-7 w-7 rounded-full transition-colors hover:bg-white/10", selectedColor.textColor)}
                         >
-                            <Plus size={16} />
+                            <Plus size={14} />
                         </Button>
-
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-neutral-400 hover:text-white hover:bg-white/10 rounded-full">
-                                    <MoreVertical size={16} />
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-neutral-500 hover:text-neutral-300 hover:bg-white/10 rounded-full transition-colors">
+                                    <MoreVertical size={14} />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-neutral-900 border-neutral-800 text-white shadow-2xl rounded-xl p-1 w-56">
@@ -241,20 +248,21 @@ export const KanbanColumn = ({
 
                                 {/* Color Picker */}
                                 <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger className="hover:bg-neutral-800 rounded-lg">
-                                        <Palette className="mr-3 text-neutral-400" size={16} />
-                                        <span>Colores de Bandeja</span>
+                                    <DropdownMenuSubTrigger className="hover:bg-blue-600 focus:bg-blue-600 data-[state=open]:bg-blue-600 rounded-lg transition-colors py-2">
+                                        <Palette className="mr-3 text-neutral-400 group-hover:text-white" size={16} />
+                                        <span className="font-medium">Colores de Bandeja</span>
                                     </DropdownMenuSubTrigger>
                                     <DropdownMenuPortal>
-                                        <DropdownMenuSubContent className="bg-neutral-900 border-neutral-800 text-white rounded-xl p-1 ml-1">
+                                        <DropdownMenuSubContent className="bg-neutral-900 border-neutral-800 text-white shadow-2xl rounded-xl p-1 ml-1 w-48">
                                             {colors.map(color => (
                                                 <DropdownMenuItem
                                                     key={color.name}
                                                     onClick={() => onUpdateColor?.(group.id, color.value)}
-                                                    className="hover:bg-neutral-800 rounded-lg flex items-center gap-3"
+                                                    className="hover:bg-neutral-800 focus:bg-neutral-800 rounded-lg flex items-center gap-3 py-2 cursor-pointer transition-colors"
                                                 >
-                                                    <div className={`w-3 h-3 rounded-full ${color.value.replace('/50', '').replace('-900', '-500')}`}></div>
-                                                    <span className="text-xs">{color.name}</span>
+                                                    <div className={cn("w-3.5 h-3.5 rounded-full border border-white/10", color.cardColor.replace('/40', ''))}></div>
+                                                    <span className="text-xs font-medium">{color.name}</span>
+                                                    {group.color === color.value && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />}
                                                 </DropdownMenuItem>
                                             ))}
                                         </DropdownMenuSubContent>
@@ -309,13 +317,18 @@ export const KanbanColumn = ({
                             onClick={(e: any) => onCardClick(card)}
                             cardColor={selectedColor.cardColor}
                             contacts={contacts}
+                            isCompact={isCompact}
                         />
                     ))}
                 </SortableContext>
 
                 {cards.length === 0 && (
-                    <div className="h-24 rounded-lg border border-dashed border-white/5 flex items-center justify-center opacity-30">
-                        <span className="text-neutral-500 text-[10px] font-mono uppercase">Vacío</span>
+                    <div className={cn("flex-grow flex flex-col items-center justify-center py-8 px-4 text-center border-2 border-dashed rounded-2xl m-2 transition-colors", selectedColor.pill, "border-white/5 opacity-40")}>
+                        <div className="bg-white/5 p-3 rounded-full mb-3">
+                            <Plus size={20} className={selectedColor.textColor} />
+                        </div>
+                        <span className={cn("text-[10px] font-bold uppercase tracking-widest mb-1", selectedColor.textColor)}>Sin Conversaciones</span>
+                        <p className="text-[9px] text-neutral-500 max-w-[120px]">Añade un contacto para empezar</p>
                     </div>
                 )}
             </div>

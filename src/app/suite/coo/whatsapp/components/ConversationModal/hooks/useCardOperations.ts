@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion, Timestamp, addDoc, collection, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { toast } from 'sonner';
@@ -41,6 +41,12 @@ export const useCardOperations = ({
     const [newPayment, setNewPayment] = useState({ type: 'visa' as const, last4: '', expiry: '', brand: '' });
     const [newHistoryComment, setNewHistoryComment] = useState('');
 
+    // Keep latest contactInfo in a ref for async/timeout access
+    const latestContactInfo = useRef(contactInfo);
+    useEffect(() => {
+        latestContactInfo.current = contactInfo;
+    }, [contactInfo]);
+
     const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setContactInfo((prev) => ({ ...prev, [name]: value }));
@@ -52,29 +58,30 @@ export const useCardOperations = ({
         if (!originalPhone) return null;
 
         try {
+            const dataToSave = latestContactInfo.current;
             // 1. Update Kanban Card
             if (currentCardId && currentGroupId && !currentCardId.startsWith('temp-')) {
-                await updateDoc(doc(db, 'kanban-groups', currentGroupId, 'cards', currentCardId), contactInfo);
+                await updateDoc(doc(db, 'kanban-groups', currentGroupId, 'cards', currentCardId), dataToSave);
             }
 
             // 2. Update CRM Contacts
             const cleanDigits = originalPhone.replace(/\D/g, '');
             const contactsQuery = query(collection(db, 'contacts'), where('phone', 'in', [`+${cleanDigits}`, cleanDigits]));
             const contactsSnapshot = await getDocs(contactsQuery);
-            let contactId = contactInfo.id;
+            let contactId = dataToSave.id;
 
             if (!contactsSnapshot.empty) {
                 contactId = contactsSnapshot.docs[0].id;
                 for (const cDoc of contactsSnapshot.docs) {
                     await updateDoc(cDoc.ref, {
-                        ...contactInfo,
-                        phone: contactInfo.contactNumber ? normalizePhoneNumber(contactInfo.contactNumber) : cDoc.data().phone,
+                        ...dataToSave,
+                        phone: dataToSave.contactNumber ? normalizePhoneNumber(dataToSave.contactNumber) : cDoc.data().phone,
                         lastUpdated: serverTimestamp()
                     });
                 }
             } else {
                 const newContact = {
-                    ...contactInfo,
+                    ...dataToSave,
                     phone: normalizePhoneNumber(originalPhone),
                     createdAt: serverTimestamp(),
                     lastUpdated: serverTimestamp(),

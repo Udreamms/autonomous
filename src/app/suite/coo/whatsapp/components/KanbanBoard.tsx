@@ -13,7 +13,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useKanbanBoard } from '../hooks/useKanbanBoard';
 import { KanbanHeader } from './KanbanHeader';
-import { KanbanColumn } from './KanbanColumn';
+import KanbanColumn from './KanbanColumn';
 import Card from './Card';
 import ConversationModal from './ConversationModal';
 import { useSidebar } from '@/components/SidebarContext';
@@ -23,9 +23,30 @@ export default function KanbanBoard() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'unassigned'>('all');
+  const [isCompact, setIsCompact] = useState(true);
 
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { groups, cards, loading, handleDragEnd, handleUpdateColor } = useKanbanBoard(searchTerm);
+
+  const filteredCards = useMemo(() => {
+    return cards.filter(card => {
+      // Search filter is already handled by the hook (actually it's not, checking hook again... 
+      // wait, hook declaration: useKanbanBoard(filterTerm: string = '') but it doesn't use it.
+      // So I'll handle search here too just in case.
+      const matchesSearch = !searchTerm ||
+        card.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Type filters
+      if (filter === 'unread') return card.unreadCount > 0;
+      if (filter === 'unassigned') return !card.assignedTo;
+
+      return true;
+    });
+  }, [cards, searchTerm, filter]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -76,6 +97,8 @@ export default function KanbanBoard() {
       <KanbanHeader
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        filter={filter}
+        setFilter={setFilter}
         channelStats={channelStats}
         isSidebarCollapsed={isCollapsed}
         toggleSidebar={toggleSidebar}
@@ -88,15 +111,16 @@ export default function KanbanBoard() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex h-full min-w-max">
+          <div className="flex h-full min-w-max p-4 pt-1 pb-6 gap-4">
             {groups.map(group => (
               <KanbanColumn
                 key={group.id}
                 group={group}
                 allGroups={groups}
-                cards={cards.filter(c => c.groupId === group.id)}
+                cards={filteredCards.filter(c => c.groupId === group.id)}
                 onCardClick={handleCardClick}
                 onUpdateColor={handleUpdateColor}
+                isCompact={isCompact}
               />
             ))}
           </div>
