@@ -21,12 +21,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setCurrentUser(user);
+        console.log("AuthContext: Starting effect, subscribing to onAuthStateChanged...");
+        try {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                console.log("AuthContext: onAuthStateChanged fired! User:", user?.email || "null");
+                setCurrentUser(user);
+                setLoading(false);
+            });
+            return unsubscribe;
+        } catch (err) {
+            console.error("AuthContext: Error in onAuthStateChanged setup:", err);
             setLoading(false);
-        });
-
-        return unsubscribe;
+        }
     }, []);
 
     return (
